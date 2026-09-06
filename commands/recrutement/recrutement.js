@@ -13,7 +13,17 @@ const {
 const { time, TimestampStyles, userMention } = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
 const Prompt = require('../../framework_utils/Prompt.js');
-const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId, disciplinaireForumChannelId } = require('../../config.json');
+const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId } = require('../../config.json');
+
+const getUserReportThread = async (forumChannel, username) => {
+	const normalizedUsername = username.toLowerCase();
+	const cachedThread = forumChannel?.threads?.cache.find((thread) => thread.name?.toLowerCase() === normalizedUsername);
+	if (cachedThread) return cachedThread;
+
+	const fetchedThreads = await forumChannel.threads.fetch();
+	const threadCollection = fetchedThreads?.threads ?? fetchedThreads ?? [];
+	return threadCollection.find((thread) => thread.name?.toLowerCase() === normalizedUsername) ?? null;
+};
 
 const createRecruitmentPrompt = (data, meta, salon) => {
 	const embedValue = (value, fallback = 'Non renseigné') => String(value ?? fallback).slice(0, 1024);
@@ -100,7 +110,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 				style: ButtonStyle.Success,
 				callback: async (buttonInteraction) => {
 					await buttonInteraction.deferUpdate();
-					let notified = false;
+					const notified = false;
 					try {
 						const candidat = await buttonInteraction.guild.members.fetch(meta.user_id);
 						const roleIds = Array.isArray(recruitmentAcceptedRoleIds)
@@ -128,47 +138,31 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						}
 						const Rapportchannel = await buttonInteraction.guild.channels.fetch(rapportForumChannelId);
 						try {
-							const embed = new EmbedBuilder()
-								.setColor(0x2F3136)
-								.setAuthor({ name: '[C.S.A - CUSTODIAN-IV]' })
-								.setDescription(`Ouverture du dossier rapport de \`${meta.username}\`\n`)
-								.addFields(
-									{ name: 'Nom d\'utilisateur', value: embedValue(meta.username), inline: true },
-									{ name: 'ID utilisateur', value: userMention(meta.user_id), inline: true },
-									{ name: 'Crée le : ', value: time(safeTimestamp, TimestampStyles.FullDateShortTime) },
-								)
-								.setTimestamp();
-							await Rapportchannel.threads.create({
-								name: meta.username,
-								message: { embeds: [embed] },
-							});
-							console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread du rapport créé pour ${meta.username} (${meta.user_id})`);
+							const existingThread = await getUserReportThread(Rapportchannel, meta.username);
+							if (existingThread) {
+								console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread du rapport déjà existant pour ${meta.username} (${meta.user_id})`);
+							}
+							else {
+								const embed = new EmbedBuilder()
+									.setColor(0x2F3136)
+									.setAuthor({ name: '[C.S.A - CUSTODIAN-IV]' })
+									.setDescription(`Ouverture du dossier rapport de \`${meta.username}\`\n`)
+									.addFields(
+										{ name: 'Nom d\'utilisateur', value: embedValue(meta.username), inline: true },
+										{ name: 'ID utilisateur', value: userMention(meta.user_id), inline: true },
+										{ name: 'Crée le : ', value: time(safeTimestamp, TimestampStyles.FullDateShortTime) },
+									)
+									.setTimestamp();
+								await Rapportchannel.threads.create({
+									name: meta.username,
+									message: { embeds: [embed] },
+								});
+								console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread du rapport créé pour ${meta.username} (${meta.user_id})`);
+							}
 						}
 						catch (error) {
 							console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible de créer le thread du rapport: ${error}`);
 						}
-						const disciplinaireChannel = await buttonInteraction.guild.channels.fetch(disciplinaireForumChannelId);
-						try {
-							const embed = new EmbedBuilder()
-								.setColor(0x2F3136)
-								.setAuthor({ name: '[C.S.A - CUSTODIAN-IV]' })
-								.setDescription(`Ouverture du dossier disciplinaire de \`${meta.username}\`\n`)
-								.addFields(
-									{ name: 'Nom d\'utilisateur', value: embedValue(meta.username), inline: true },
-									{ name: 'ID utilisateur', value: userMention(meta.user_id), inline: true },
-									{ name: 'Crée le : ', value: time(safeTimestamp, TimestampStyles.FullDateShortTime) },
-								)
-								.setTimestamp();
-							await disciplinaireChannel.threads.create({
-								name: meta.username,
-								message: { embeds: [embed] },
-							});
-							console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread disciplinaire créé pour ${meta.username} (${meta.user_id})`);
-						}
-						catch (error) {
-							console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible de créer le thread du rapport: ${error}`);
-						}
-						notified = true;
 					}
 					catch (error) {
 						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Erreur lors de l'acceptation de la candidature: ${error}`);

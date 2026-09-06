@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const recrutement = require('../commands/recrutement/recrutement.js');
+const recrutementPanel = require('../commands/recrutement/recrutement-panel.js');
 const { startJob } = require('../framework_utils/CronStatus.js');
 
 
@@ -13,6 +14,12 @@ module.exports = {
 		}
 		catch (error) {
 			console.error('Erreur lors de la restauration des prompts:', error);
+		}
+		try {
+			await recrutementPanel.restore(client);
+		}
+		catch (error) {
+			console.error('Erreur lors de la restauration du panel de recrutement:', error);
 		}
 		startJob(client);
 	},
