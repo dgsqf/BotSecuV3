@@ -1,4 +1,4 @@
-const { Events, MessageFlags, Collection } = require('discord.js');
+const { Events, MessageFlags, Collection, EmbedBuilder } = require('discord.js');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -28,13 +28,18 @@ module.exports = {
 	        if (now < expirationTime) {
 		        const expiredTimestamp = Math.round(expirationTime / 1_000);
 		        return interaction.reply({
-			    content: `Please wait, you are on a cooldown for \`${command.data.name}\`. You can use it again <t:${expiredTimestamp}:R>.`,
+			    embeds: [new EmbedBuilder()
+				    .setColor(0xfee75c)
+				    .setTitle('Commande en cooldown')
+				    .setDescription(`Merci de patienter avant d'utiliser à nouveau la commande \`${command.data.name}\`. Vous pouvez l'utiliser de nouveau <t:${expiredTimestamp}:R>.`)],
 			    flags: MessageFlags.Ephemeral,
 		    });
 			}
 		}
 
 		try {
+			timestamps.set(interaction.user.id, now);
+			setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 			await command.execute(interaction);
 		}
 		catch (error) {
@@ -46,13 +51,19 @@ module.exports = {
 			try {
 				if (interaction.replied || interaction.deferred) {
 					await interaction.followUp({
-						content: 'There was an error while executing this command!',
+						embeds: [new EmbedBuilder()
+							.setColor(0xed4245)
+							.setTitle('Erreur')
+							.setDescription('Une erreur est survenue lors de l’exécution de cette commande.')],
 						flags: MessageFlags.Ephemeral,
 					});
 				}
 				else {
 					await interaction.reply({
-						content: 'There was an error while executing this command!',
+						embeds: [new EmbedBuilder()
+							.setColor(0xed4245)
+							.setTitle('Erreur')
+							.setDescription('Une erreur est survenue lors de l’exécution de cette commande.')],
 						flags: MessageFlags.Ephemeral,
 					});
 				}
@@ -63,8 +74,7 @@ module.exports = {
 				}
 			}
 
-			timestamps.set(interaction.user.id, now);
-			setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
+			timestamps.delete(interaction.user.id);
 		}
 	},
 };

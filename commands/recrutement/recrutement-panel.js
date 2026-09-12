@@ -2,6 +2,7 @@ const {
 	SlashCommandBuilder,
 	MessageFlags,
 	ButtonStyle,
+	EmbedBuilder,
 } = require('discord.js');
 const Prompt = require('../../framework_utils/Prompt.js');
 const recrutement = require('./recrutement.js');
@@ -17,6 +18,7 @@ const createRecruitmentPanel = () => new Prompt({
 			customId: 'recruitment:open-form',
 			label: 'Ouvrir le formulaire',
 			style: ButtonStyle.Primary,
+			cooldown: 10,
 			callback: (buttonInteraction) => recrutement.execute(buttonInteraction),
 		},
 	],
@@ -40,6 +42,21 @@ module.exports = {
 		.setName('recrutement-panel')
 		.setDescription('Envoie le panel du formulaire de recrutement dans le salon configuré.'),
 	async execute(interaction) {
+		const REQUIRED_ROLE_ID = '1542836944457703454';
+
+		// Step 1: Check if the user (interaction.member) has the required role
+		if (!interaction.member.roles.cache.has(REQUIRED_ROLE_ID)) {
+			denied_access_embed = new EmbedBuilder()
+				.setColor(0xFF0000)
+				.setTitle('Accès refusé')
+				.setDescription('Vous devez posséder le rôle "IRA - 8 : Direction" pour utiliser cette commande.');
+			// Authorization Failure
+			await interaction.reply({
+				embeds: [denied_access_embed],
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
 		let channel;
 		try {
 			channel = await getPanelChannel(interaction.guild);
@@ -50,14 +67,21 @@ module.exports = {
 
 		if (!channel) {
 			return interaction.reply({
-				content: 'Le salon du panel de recrutement est absent ou mal configuré dans config.json.',
+				embeds: [new EmbedBuilder()
+					.setColor(0xed4245)
+					.setTitle('Configuration invalide')
+					.setDescription('Le salon du panel de recrutement est absent ou mal configuré dans config.json.')],
 				flags: MessageFlags.Ephemeral,
 			});
 		}
 
 		await createRecruitmentPanel().send(channel);
-		return interaction.reply({
-			content: `Le panel de recrutement a été envoyé dans ${channel}.`,
+		panel_sent_embed = new EmbedBuilder()
+			.setColor(0x00FF00)
+			.setTitle('Panel envoyé')
+			.setDescription(`Le panel de recrutement a été envoyé dans ${channel}.`);
+		await interaction.reply({
+			embeds: [panel_sent_embed],
 			flags: MessageFlags.Ephemeral,
 		});
 	},

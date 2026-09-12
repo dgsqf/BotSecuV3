@@ -56,7 +56,7 @@ class Prompt {
 		const rows = [];
 		for (let i = 0; i < this.buttons.length; i += 5) {
 			rows.push(new ActionRowBuilder().addComponents(
-				this.buttons.slice(i, i + 5).map(({ callback, ...button }) =>
+				this.buttons.slice(i, i + 5).map((button) =>
 					new ButtonBuilder()
 						.setCustomId(button.customId)
 						.setLabel(button.label || 'Bouton')
@@ -134,10 +134,40 @@ class Prompt {
 					return;
 				}
 
+				const cooldown = button.cooldown;
+				if (cooldown && buttonInteraction.client.cooldowns) {
+					const cooldownKey = `button:${button.customId}`;
+					if (!buttonInteraction.client.cooldowns.has(cooldownKey)) {
+						buttonInteraction.client.cooldowns.set(cooldownKey, new Map());
+					}
+
+					const timestamps = buttonInteraction.client.cooldowns.get(cooldownKey);
+					const now = Date.now();
+					const cooldownAmount = cooldown * 1_000;
+					const timestamp = timestamps.get(buttonInteraction.user.id);
+					if (timestamp && now < timestamp + cooldownAmount) {
+						const expiredTimestamp = Math.round((timestamp + cooldownAmount) / 1_000);
+						await buttonInteraction.reply({
+							embeds: [new EmbedBuilder()
+								.setColor(0xfee75c)
+								.setTitle('Bouton en cooldown')
+								.setDescription(`Veuillez patienter avant de réutiliser ce bouton. Vous pourrez recommencer <t:${expiredTimestamp}:R>.`)],
+							flags: 64,
+						});
+						return;
+					}
+
+					timestamps.set(buttonInteraction.user.id, now);
+					setTimeout(() => timestamps.delete(buttonInteraction.user.id), cooldownAmount);
+				}
+
 				if (!this.hasRequiredRole(button, buttonInteraction)) {
 					if (!buttonInteraction.replied && !buttonInteraction.deferred) {
 						await buttonInteraction.reply({
-							content: button.missingRoleMessage || 'Vous n’avez pas le rôle requis pour utiliser ce bouton.',
+							embeds: [new EmbedBuilder()
+								.setColor(0xed4245)
+								.setTitle('Accès refusé')
+								.setDescription(button.missingRoleMessage || 'Vous n’avez pas le rôle requis pour utiliser ce bouton.')],
 							flags: 64,
 						});
 					}

@@ -171,7 +171,10 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 					if (!notified) {
 						try {
 							await buttonInteraction.followUp({
-								content: 'Le candidat n\'a pas pu être notifié par MP (membre introuvable ou MPs fermés).',
+								embeds: [new EmbedBuilder()
+									.setColor(0xfee75c)
+									.setTitle('Notification impossible')
+									.setDescription('Le candidat n\'a pas pu être notifié par MP (membre introuvable ou MPs fermés).')],
 								flags: MessageFlags.Ephemeral,
 							});
 						}
@@ -243,7 +246,10 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 					if (!notified) {
 						try {
 							await modalSubmit.followUp({
-								content: 'Le candidat n\'a pas pu être notifié par MP (membre introuvable ou MPs fermés).',
+								embeds: [new EmbedBuilder()
+									.setColor(0xfee75c)
+									.setTitle('Notification impossible')
+									.setDescription('Le candidat n\'a pas pu être notifié par MP (membre introuvable ou MPs fermés).')],
 								flags: MessageFlags.Ephemeral,
 							});
 						}
@@ -310,7 +316,7 @@ module.exports = {
 			.section('Question à choix multiples', 'Les prochaines questions sont des questions de connaissance sur la Fondation SCP et les anomalies, Un trop grand nombre de mauvaises réponse pourrait causer un refus. Néanmoins, vous ne devez pas : \n - Utiliser de l\'intelligence artificielle ou tout autre outil pour répondre aux questions. \n - Demander de l\'aide à d\'autres personnes pour répondre aux questions. \n - Chercher les réponses sur internet.', (form) => {
 				form.qcm('quizz', [
 					{ question: 'Dans la liste suivante quelle division de la sécurité n\'existe pas ? :', choices: ['Unité de Lutte contre les dangers Biologiques', 'Unité de Protection Rapprochée', 'Unité de Renseignements Centrale'] },
-					{ question: 'Dans la liste suivante quelle SCP n\'est pas sur site-lethe ?:	', choices: ['SCP-426', 'SCP-096', 'SCP-999'] },
+					{ question: 'Dans la liste suivante quelle SCP n\'est pas sur site-lethe ?:	', choices: ['SCP-426', 'SCP-3001', 'SCP-999'] },
 					{ question: 'Dans la liste suivante quelle SCP est de classe Safe ? :', choices: ['SCP-173', 'SCP-999', 'SCP-096'] },
 					{ question: 'Dans la liste suivante quelle SCP est de classe Euclid ? :', choices: ['SCP-106', 'SCP-131', 'SCP-008'] },
 					{ question: 'Dans la liste suivante quelle SCP est de classe Keter ? :', choices: ['SCP-1025', 'SCP-076', 'SCP-049'] },

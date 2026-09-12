@@ -318,16 +318,29 @@ class Form {
 
 					if (action === 'cancel') {
 						collector.stop('cancel');
-						await updateCurrentMessage({ content: 'Formulaire annulé.', embeds: [], components: [] });
+						 const cancelled_embed = new EmbedBuilder()
+							.setColor(0xFF0000)
+							.setTitle('Formulaire annulé')
+							.setDescription('Vous avez annulé le formulaire.');
+						await updateCurrentMessage({ embeds: [cancelled_embed], components: [] });
 						await i.deferUpdate();
 						return onCancel?.(this._metadata(state));
 					}
 
 					if (action === 'confirm') {
 						const missing = this.fields.find((f) => f.required !== false && (state.values[f.id] == null || String(state.values[f.id]).trim().length === 0));
-						if (missing) return i.reply({ content: `Le champ « ${missing.label} » est requis.`, flags: MessageFlags.Ephemeral });
+						if (missing) {
+							return i.reply({
+								embeds: [new EmbedBuilder().setColor(0xfee75c).setTitle('Champ requis').setDescription(`Le champ « ${missing.label} » est requis.`)],
+								flags: MessageFlags.Ephemeral,
+							});
+						}
 						collector.stop('confirm');
-						await updateCurrentMessage({ content: 'Formulaire envoyé.', embeds: [], components: [] });
+						 const confirm_embed = new EmbedBuilder()
+							.setColor(0x00FF00)
+							.setTitle('Formulaire envoyé')
+							.setDescription('Votre formulaire a été envoyé avec succès.');
+						await updateCurrentMessage({ embeds: [confirm_embed], components: [] });
 						await i.deferUpdate();
 						try {
 							await message.delete();
@@ -367,10 +380,10 @@ class Form {
 						if (field.type === 'number') {
 							const numericValue = Number(rawValue);
 							if (!Number.isFinite(numericValue)) {
-								return modalSubmit.reply({ content: `Le champ « ${field.label} » doit être un nombre valide.`, flags: MessageFlags.Ephemeral });
+								return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Valeur invalide').setDescription(`Le champ « ${field.label} » doit être un nombre valide.`)], flags: MessageFlags.Ephemeral });
 							}
 							const rangeError = this._rangeError(numericValue, field.min, field.max, field.label);
-							if (rangeError) return modalSubmit.reply({ content: rangeError, flags: MessageFlags.Ephemeral });
+							if (rangeError) return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Valeur hors limites').setDescription(rangeError)], flags: MessageFlags.Ephemeral });
 							state.values[field.id] = numericValue;
 						}
 						else {
@@ -405,14 +418,14 @@ class Form {
 						for (const config of DATE_SUBFIELDS) {
 							const rawInput = modalSubmit.fields.getTextInputValue(config.key).trim();
 							if (!rawInput) {
-								return modalSubmit.reply({ content: `Le champ « ${config.label} » est requis.`, flags: MessageFlags.Ephemeral });
+								return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xfee75c).setTitle('Champ requis').setDescription(`Le champ « ${config.label} » est requis.`)], flags: MessageFlags.Ephemeral });
 							}
 							const numericValue = Number(rawInput);
 							if (!Number.isInteger(numericValue)) {
-								return modalSubmit.reply({ content: `Le champ « ${config.label} » doit être un nombre entier.`, flags: MessageFlags.Ephemeral });
+								return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Valeur invalide').setDescription(`Le champ « ${config.label} » doit être un nombre entier.`)], flags: MessageFlags.Ephemeral });
 							}
 							const rangeError = this._rangeError(numericValue, config.min, config.max, config.label);
-							if (rangeError) return modalSubmit.reply({ content: rangeError, flags: MessageFlags.Ephemeral });
+							if (rangeError) return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Valeur hors limites').setDescription(rangeError)], flags: MessageFlags.Ephemeral });
 							dateValues[config.key] = numericValue;
 						}
 
@@ -430,7 +443,10 @@ class Form {
 				catch (error) {
 					console.error('Erreur dans le formulaire:', error);
 					if (!i.replied && !i.deferred) {
-						await i.reply({ content: 'Une erreur est survenue.', flags: MessageFlags.Ephemeral });
+						await i.reply({
+							embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Erreur').setDescription('Une erreur est survenue.')],
+							flags: MessageFlags.Ephemeral,
+						});
 					}
 				}
 			});
