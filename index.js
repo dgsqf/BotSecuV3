@@ -1,9 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { logChannelId: configuredLogChannelId } = require('./config.json');
+const { createLogger } = require('./framework_utils/Logging.js');
 
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+client.log = createLogger(client, process.env.LOG_CHANNEL_ID || configuredLogChannelId);
 
 client.commands = new Collection();
 client.cooldowns = new Collection();

@@ -1,4 +1,5 @@
 const { Events, MessageFlags, Collection, EmbedBuilder } = require('discord.js');
+const { createUserErrorEmbed } = require('../framework_utils/Logging.js');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -8,10 +9,13 @@ module.exports = {
 		const command = interaction.client.commands.get(interaction.commandName);
 
 		if (!command) {
-			console.error(`No command matching ${interaction.commandName} was found.`);
+			await interaction.client.log('INTERACTION CREATE', 'ERROR', `Commande introuvable: ${interaction.commandName}.`);
+			await interaction.reply({ content: 'Cette commande est indisponible. Vous pouvez ouvrir un ticket afin que notre équipe puisse la corriger.', flags: MessageFlags.Ephemeral });
 			return;
 		}
 		const { cooldowns } = interaction.client;
+		const cooldownLogs = interaction.client.cooldownLogs ?? new Collection();
+		interaction.client.cooldownLogs = cooldownLogs;
 
 		if (!cooldowns.has(command.data.name)) {
 	        cooldowns.set(command.data.name, new Collection());
@@ -25,15 +29,22 @@ module.exports = {
 		if (timestamps.has(interaction.user.id)) {
 	        const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
 
-	        if (now < expirationTime) {
+			if (now < expirationTime) {
 		        const expiredTimestamp = Math.round(expirationTime / 1_000);
-		        return interaction.reply({
+		        await interaction.reply({
 			    embeds: [new EmbedBuilder()
 				    .setColor(0xfee75c)
 				    .setTitle('Commande en cooldown')
 				    .setDescription(`Merci de patienter avant d'utiliser à nouveau la commande \`${command.data.name}\`. Vous pouvez l'utiliser de nouveau <t:${expiredTimestamp}:R>.`)],
 			    flags: MessageFlags.Ephemeral,
 		    });
+				const cooldownLogKey = `${command.data.name}:${interaction.user.id}`;
+				if (!cooldownLogs.has(cooldownLogKey)) {
+					cooldownLogs.set(cooldownLogKey, true);
+					setTimeout(() => cooldownLogs.delete(cooldownLogKey), Math.max(0, expirationTime - now));
+					await interaction.client.log('COOLDOWN', 'WARN', `L'utilisateur ${interaction.user.tag} <@${interaction.user.id}> a utilisé la commande ${command.data.name} trop de fois.`);
+				}
+				return;
 			}
 		}
 
@@ -43,7 +54,7 @@ module.exports = {
 			await command.execute(interaction);
 		}
 		catch (error) {
-			console.error(error);
+			await interaction.client.log('INTERACTION CREATE', 'ERROR', `Erreur lors de l'exécution de la commande ${command.data.name}: ${error.stack || error}`);
 			const isStaleInteractionError = (err) => err?.code === 10062 || err?.code === 40060;
 			if (isStaleInteractionError(error)) {
 				return;
@@ -51,19 +62,13 @@ module.exports = {
 			try {
 				if (interaction.replied || interaction.deferred) {
 					await interaction.followUp({
-						embeds: [new EmbedBuilder()
-							.setColor(0xed4245)
-							.setTitle('Erreur')
-							.setDescription('Une erreur est survenue lors de l’exécution de cette commande.')],
+						embeds: [createUserErrorEmbed(`l’exécution de la commande \`${command.data.name}\``)],
 						flags: MessageFlags.Ephemeral,
 					});
 				}
 				else {
 					await interaction.reply({
-						embeds: [new EmbedBuilder()
-							.setColor(0xed4245)
-							.setTitle('Erreur')
-							.setDescription('Une erreur est survenue lors de l’exécution de cette commande.')],
+						embeds: [createUserErrorEmbed(`l’exécution de la commande \`${command.data.name}\``)],
 						flags: MessageFlags.Ephemeral,
 					});
 				}

@@ -6,6 +6,7 @@ const {
 	ComponentType,
 } = require('discord.js');
 
+const { createUserErrorEmbed } = require('./Logging.js');
 /**
  * Creates an embed prompt with configurable buttons.
  *
@@ -154,6 +155,13 @@ class Prompt {
 								.setDescription(`Veuillez patienter avant de réutiliser ce bouton. Vous pourrez recommencer <t:${expiredTimestamp}:R>.`)],
 							flags: 64,
 						});
+						const cooldownLogKey = `${cooldownKey}:${buttonInteraction.user.id}`;
+						if (!buttonInteraction.client.cooldownLogs) buttonInteraction.client.cooldownLogs = new Set();
+						if (!buttonInteraction.client.cooldownLogs.has(cooldownLogKey)) {
+							buttonInteraction.client.cooldownLogs.add(cooldownLogKey);
+							await buttonInteraction.client.log('COOLDOWN', 'WARN', `L'utilisateur ${buttonInteraction.user.tag} <@${buttonInteraction.user.id}> a utilisé le bouton ${button.customId} trop de fois.`);
+							setTimeout(() => buttonInteraction.client.cooldownLogs.delete(cooldownLogKey), cooldownAmount);
+						}
 						return;
 					}
 
@@ -177,7 +185,10 @@ class Prompt {
 				await button.callback(buttonInteraction, this);
 			}
 			catch (error) {
-				console.error('Erreur dans le prompt:', error);
+				await buttonInteraction.client.log('PROMPT', 'ERROR', `Erreur dans le prompt (${buttonInteraction.customId}): ${error.stack || error}`);
+				const response = { embeds: [createUserErrorEmbed('le traitement de ce bouton')], flags: 64 };
+				if (buttonInteraction.replied || buttonInteraction.deferred) await buttonInteraction.followUp(response);
+				else await buttonInteraction.reply(response);
 			}
 		});
 

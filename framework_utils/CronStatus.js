@@ -10,16 +10,26 @@ const StatusList = [
 
 module.exports = {
 	startJob: function(client) {
+		const updatePresence = (context) => {
+			try {
+				client.user.setPresence({ activities: [{ name: StatusList[Math.floor(Math.random() * StatusList.length)], type: 4 }], status: PresenceUpdateStatus.Online });
+			}
+			catch (error) {
+				return client.log('CRON STATUS', 'ERROR', `Impossible de définir le statut (${context}): ${error.stack || error}`);
+			}
+			return null;
+		};
+
 		const job = new CronJob(
 			'*/10 * * * *',
 			function() {
-				console.log(`[CronJob : ${new Date().toLocaleString()}] Mise à jour du statut du bot`);
-				client.user.setPresence({ activities: [{ name: StatusList[Math.floor(Math.random() * StatusList.length)], type: 4 }], status: PresenceUpdateStatus.Online });
+				client.log('CRON STATUS', 'INFO', 'Mise à jour du statut du bot.', sendEmbed = false);
+				updatePresence('la mise à jour périodique');
 			},
 			null,
 			false,
 		);
-		client.user.setPresence({ activities: [{ name: StatusList[Math.floor(Math.random() * StatusList.length)], type: 4 }], status: PresenceUpdateStatus.Online });
+		updatePresence('la définition initiale');
 		job.start();
 	},
 };

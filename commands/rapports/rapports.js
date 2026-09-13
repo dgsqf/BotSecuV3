@@ -96,12 +96,12 @@ module.exports = {
 			forumChannel = await interaction.guild.channels.fetch(forumChannelId);
 		}
 		catch (error) {
-			console.error('[RAPPORT] Impossible de récupérer le forum des rapports:', error);
+			await interaction.client.log('RAPPORT', 'ERROR', `Impossible de récupérer le forum des rapports: ${error.stack || error}`);
 			return interaction.reply({
 				embeds: [new EmbedBuilder()
 					.setColor(0xed4245)
 					.setTitle('Forum indisponible')
-					.setDescription('Le forum de rapports est indisponible.')],
+					.setDescription('Le forum de rapports est indisponible. Vous pouvez ouvrir un ticket afin que notre équipe puisse corriger ce problème.')],
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -111,7 +111,7 @@ module.exports = {
 				embeds: [new EmbedBuilder()
 					.setColor(0xed4245)
 					.setTitle('Canal invalide')
-					.setDescription('Le canal de rapport configuré est invalide.')],
+					.setDescription('Le canal de rapport configuré est invalide. Vous pouvez ouvrir un ticket afin que notre équipe puisse corriger ce problème.')],
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -189,7 +189,7 @@ module.exports = {
 							.setTimestamp();
 
 						await thread.send({ embeds: [embed] });
-
+						await interaction.client.log('RAPPORT', 'INFO', `Rapport de type "${reportType}" soumis par ${formMeta.username} <@${formMeta.user_id}> dans le thread ${thread.name} <#${thread.id}>.`);
 						await interaction.followUp({
 							embeds: [new EmbedBuilder()
 								.setColor(0x57f287)

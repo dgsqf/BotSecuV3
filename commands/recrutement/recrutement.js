@@ -140,7 +140,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						try {
 							const existingThread = await getUserReportThread(Rapportchannel, meta.username);
 							if (existingThread) {
-								console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread du rapport déjà existant pour ${meta.username} (${meta.user_id})`);
+								await buttonInteraction.client.log('RECRUTEMENT', 'WARN', `Thread du rapport déjà existant pour ${meta.username} <@${meta.user_id}>`);
 							}
 							else {
 								const embed = new EmbedBuilder()
@@ -157,15 +157,15 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 									name: meta.username,
 									message: { embeds: [embed] },
 								});
-								console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] Thread du rapport créé pour ${meta.username} (${meta.user_id})`);
+								await buttonInteraction.client.log('RECRUTEMENT', 'INFO', `Thread du rapport créé pour ${meta.username} <@${meta.user_id}>`);
 							}
 						}
 						catch (error) {
-							console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible de créer le thread du rapport: ${error}`);
+							await buttonInteraction.client.log('RECRUTEMENT', 'ERROR', `Impossible de créer le thread du rapport: ${error.stack || error}`);
 						}
 					}
 					catch (error) {
-						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Erreur lors de l'acceptation de la candidature: ${error}`);
+						await buttonInteraction.client.log('RECRUTEMENT', 'ERROR', `Erreur lors de l'acceptation de la candidature: ${error.stack || error}`);
 					}
 
 					if (!notified) {
@@ -185,7 +185,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						await salon.delete('Candidature acceptée');
 					}
 					catch (error) {
-						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible de supprimer le salon de candidature: ${error}`);
+						await buttonInteraction.client.log('RECRUTEMENT', 'ERROR', `Impossible de supprimer le salon de candidature: ${error.stack || error}`);
 					}
 				},
 			},
@@ -211,7 +211,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						});
 					}
 					catch (error) {
-						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Le motif du refus n'a pas été soumis à temps: ${error}`);
+						await buttonInteraction.client.log('RECRUTEMENT', 'WARN', `Le motif du refus n'a pas été soumis à temps: ${error.stack || error}`);
 						return;
 					}
 
@@ -231,6 +231,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 							.setTitle('Candidature refusée')
 							.setDescription(`La candidature de ${userMention(meta.user_id)} a été refusée.`)
 							.setFooter({ text: `Refusé par ${buttonInteraction.user.tag}`, iconURL: buttonInteraction.user.displayAvatarURL() })
+							.addFields({ name: 'Motif du refus', value: reason })
 							.setTimestamp();
 						if (salonResultat?.isTextBased()) {
 							await salonResultat.send({
@@ -240,7 +241,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						notified = true;
 					}
 					catch (error) {
-						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible d’envoyer le refus au candidat: ${error}`);
+						await buttonInteraction.client.log('RECRUTEMENT', 'ERROR', `Impossible d’envoyer le refus au candidat: ${error.stack || error}`);
 					}
 
 					if (!notified) {
@@ -260,7 +261,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						await salon.delete('Candidature refusée');
 					}
 					catch (error) {
-						console.error(`[RECRUTEMENT : ${new Date().toLocaleString()}] Impossible de supprimer le salon de candidature: ${error}`);
+						await buttonInteraction.client.log('RECRUTEMENT', 'ERROR', `Impossible de supprimer le salon de candidature: ${error.stack || error}`);
 					}
 				},
 			},
@@ -294,7 +295,7 @@ module.exports = {
 				}
 			}
 		}
-		console.log(`[RECRUTEMENT : ${new Date().toLocaleString()}] ${restored} prompt(s) de recrutement restauré(s).`);
+		await client.log('RECRUTEMENT', 'INFO', ` ${restored} prompt(s) de recrutement restauré(s).`, sendEmbed = false);
 	},
 	async execute(interaction) {
 		const formulaire = new Form({
@@ -345,7 +346,7 @@ module.exports = {
 
 				const prompt = createRecruitmentPrompt(data, meta, salon);
 				await prompt.send(salon);
-				console.log(`[Recrutement : ${new Date().toLocaleString()}] Nouvelle candidature soumise par ${meta.username} (${meta.user_id})`);
+				await interaction.client.log('RECRUTEMENT', 'INFO', `Nouvelle candidature soumise par ${meta.username} <@${meta.user_id}>`);
 				const responseEmbed = new EmbedBuilder()
 					.setColor(0x0099ff)
 					.setTitle('Candidature soumise')

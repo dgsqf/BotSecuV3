@@ -12,6 +12,7 @@ const {
 	MessageFlags,
 } = require('discord.js');
 
+const { createUserErrorEmbed } = require('./Logging.js');
 const FIELDS_PER_PAGE = 4;
 const MAX_SELECT_VALUES = 25;
 const BUTTONS_PER_ROW = 5;
@@ -185,7 +186,7 @@ class Form {
 			}
 			return JSON.stringify(value).slice(0, 120);
 		}
-		return String(value).slice(0, 120);
+		return String(value);
 	}
 
 	_truncateLabel(label, maxLength = 80) {
@@ -441,13 +442,10 @@ class Form {
 					return i.deferUpdate();
 				}
 				catch (error) {
-					console.error('Erreur dans le formulaire:', error);
-					if (!i.replied && !i.deferred) {
-						await i.reply({
-							embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Erreur').setDescription('Une erreur est survenue.')],
-							flags: MessageFlags.Ephemeral,
-						});
-					}
+					await i.client.log('FORM', 'ERROR', `Erreur dans le formulaire: ${error.stack || error}`);
+					const response = { embeds: [createUserErrorEmbed('le traitement du formulaire')], flags: MessageFlags.Ephemeral };
+					if (i.replied || i.deferred) await i.followUp(response);
+					else await i.reply(response);
 				}
 			});
 		};
@@ -468,7 +466,7 @@ class Form {
 		catch (error) {
 			const isStaleInteractionError = error?.code === 10062 || error?.code === 40060;
 			if (isStaleInteractionError) {
-				console.warn('[FORM] Interaction Discord périmée, formulaire ignoré.');
+				await target.client.log('FORM', 'WARN', 'Interaction Discord périmée, formulaire ignoré.');
 				return { message: null, state, collector: null };
 			}
 			throw error;

@@ -13,13 +13,13 @@ module.exports = {
 			await recrutement.restore(client);
 		}
 		catch (error) {
-			console.error('Erreur lors de la restauration des prompts:', error);
+			await client.log('READY', 'ERROR', `Erreur lors de la restauration des prompts: ${error.stack || error}`);
 		}
 		try {
 			await recrutementPanel.restore(client);
 		}
 		catch (error) {
-			console.error('Erreur lors de la restauration du panel de recrutement:', error);
+			await client.log('READY', 'ERROR', `Erreur lors de la restauration du panel de recrutement: ${error.stack || error}`);
 		}
 		startJob(client);
 	},

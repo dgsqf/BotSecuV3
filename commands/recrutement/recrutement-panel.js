@@ -18,13 +18,13 @@ const createRecruitmentPanel = () => new Prompt({
 			customId: 'recruitment:open-form',
 			label: 'Ouvrir le formulaire',
 			style: ButtonStyle.Primary,
-			cooldown: 10,
+			cooldown: 600,
 			callback: (buttonInteraction) => recrutement.execute(buttonInteraction),
 		},
 	],
 });
 
-const getPanelChannel = async (guild) => {
+const getPanelChannel = async (guild, client) => {
 	if (!recruitmentPanelChannelId || recruitmentPanelChannelId === 'REMPLACEZ_PAR_L_ID_DU_SALON') return null;
 	try {
 		const channel = await guild.channels.fetch(recruitmentPanelChannelId);
@@ -32,12 +32,13 @@ const getPanelChannel = async (guild) => {
 	}
 	catch (error) {
 		if (error?.code === 'GuildChannelUnowned' || error?.code === 50001) return null;
+		await client.log('RECRUTEMENT PANEL', 'ERROR', `Impossible de récupérer le salon du panel de recrutement: ${error.stack || error}`);
 		throw error;
 	}
 };
 
 module.exports = {
-	cooldown: 10,
+	cooldown: 600,
 	data: new SlashCommandBuilder()
 		.setName('recrutement-panel')
 		.setDescription('Envoie le panel du formulaire de recrutement dans le salon configuré.'),
@@ -59,10 +60,10 @@ module.exports = {
 		}
 		let channel;
 		try {
-			channel = await getPanelChannel(interaction.guild);
+			channel = await getPanelChannel(interaction.guild, interaction.client);
 		}
 		catch (error) {
-			console.error('[RECRUTEMENT PANEL] Impossible de récupérer le salon configuré:', error);
+			await interaction.client.log('RECRUTEMENT PANEL', 'ERROR', `Impossible de récupérer le salon configuré: ${error.stack || error}`);
 		}
 
 		if (!channel) {
@@ -70,7 +71,7 @@ module.exports = {
 				embeds: [new EmbedBuilder()
 					.setColor(0xed4245)
 					.setTitle('Configuration invalide')
-					.setDescription('Le salon du panel de recrutement est absent ou mal configuré dans config.json.')],
+					.setDescription('Le salon du panel de recrutement est absent ou mal configuré dans config.json. Vous pouvez ouvrir un ticket afin que notre équipe puisse corriger ce problème.')],
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -91,10 +92,10 @@ module.exports = {
 		for (const guild of client.guilds.cache.values()) {
 			let channel;
 			try {
-				channel = await getPanelChannel(guild);
+				channel = await getPanelChannel(guild, client);
 			}
 			catch (error) {
-				console.error('[RECRUTEMENT PANEL] Impossible de restaurer le panel:', error);
+				await client.log('RECRUTEMENT PANEL', 'ERROR', `Impossible de restaurer le panel: ${error.stack || error}`);
 				continue;
 			}
 

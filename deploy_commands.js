@@ -1,10 +1,12 @@
 const { REST, Routes } = require('discord.js');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createLogger } = require('./framework_utils/Logging.js');
 
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 const token = process.env.DISCORD_BOT_TOKEN;
+const logger = createLogger({ channels: { fetch: async () => null } });
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
 const foldersPath = path.join(__dirname, 'commands');
@@ -41,7 +43,7 @@ const rest = new REST().setToken(token);
 		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
 	}
 	catch (error) {
-		// And of course, make sure you catch and log any errors!
-		console.error(error);
+		await logger('DEPLOY COMMANDS', 'ERROR', `Échec du déploiement des commandes: ${error.stack || error}`);
+		process.exitCode = 1;
 	}
 })();
