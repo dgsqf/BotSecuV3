@@ -4,6 +4,7 @@ const {
 	ButtonBuilder,
 	ButtonStyle,
 	ModalBuilder,
+	LabelBuilder,
 	TextInputBuilder,
 	TextInputStyle,
 	UserSelectMenuBuilder,
@@ -359,9 +360,13 @@ class Form {
 						const modal = new ModalBuilder().setCustomId(i.customId).setTitle(field.label.slice(0, 45));
 						const textInput = new TextInputBuilder()
 							.setCustomId('value')
-							.setLabel(field.label.slice(0, 45))
+							.setPlaceholder(field.label)
 							.setStyle(field.paragraph ? TextInputStyle.Paragraph : TextInputStyle.Short)
 							.setRequired(field.required !== false);
+						const label = new LabelBuilder();
+						label.setLabel('Répondez à la question :');
+						label.setDescription(field.label);
+						label.setTextInputComponent(textInput);
 						const currentTextValue = String(state.values[field.id] ?? '');
 						if (currentTextValue.length > 0) textInput.setValue(currentTextValue.slice(0, 4000));
 						if (field.type === 'number') {
@@ -369,7 +374,7 @@ class Form {
 							textInput.setMinLength(1);
 							textInput.setMaxLength(20);
 						}
-						modal.addComponents(new ActionRowBuilder().addComponents(textInput));
+						modal.addComponents(label);
 						await i.showModal(modal);
 
 						const modalSubmit = await i.awaitModalSubmit({
