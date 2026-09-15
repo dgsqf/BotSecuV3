@@ -332,16 +332,6 @@ module.exports = {
 					name: `candidature-${meta.username}`,
 					type: ChannelType.GuildText,
 					parent: recruitmentCategoryId,
-					permissionOverwrites: [
-						{
-							id: interaction.guild.roles.everyone.id,
-							deny: ['ViewChannel'],
-						},
-						{
-							id: meta.user_id,
-							allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-						},
-					],
 				});
 
 				const prompt = createRecruitmentPrompt(data, meta, salon);
