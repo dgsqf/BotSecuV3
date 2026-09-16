@@ -4,14 +4,16 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { logChannelId: configuredLogChannelId } = require('./config.json');
 const { createLogger } = require('./framework_utils/Logging.js');
 
+console.log('Starting bot...');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.log = createLogger(client, process.env.LOG_CHANNEL_ID || configuredLogChannelId);
-
+client.statusMessage = null;
 client.commands = new Collection();
 client.cooldowns = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
+
 
 for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
@@ -44,6 +46,54 @@ for (const file of eventFiles) {
 	}
 }
 
+process.on('exit', async () => {
+	console.log('SIGINT received. Logging out...');
+
+	try {
+		if (client.statusMessage) {
+			await client.statusMessage.edit({
+				embeds: [{
+					title: 'Bot status',
+					description: '🔴 Bot stopped',
+					color: 0xff0000,
+					timestamp: new Date().toISOString(),
+				}],
+			});
+		}
+
+		await client.destroy();
+		console.log('Logged out successfully.');
+		process.exit(0);
+	}
+	catch (error) {
+		console.error('Error during logout:', error);
+		process.exit(1);
+	}
+});
+process.on('SIGINT', async () => {
+	console.log('SIGINT received. Logging out...');
+
+	try {
+		if (client.statusMessage) {
+			await client.statusMessage.edit({
+				embeds: [{
+					title: 'Statut du C.S.A',
+					description: '🔴 C.S.A Éteint',
+					color: 0xff0000,
+					timestamp: new Date().toISOString(),
+				}],
+			});
+		}
+
+		await client.destroy();
+		console.log('Logged out successfully.');
+		process.exit(0);
+	}
+	catch (error) {
+		console.error('Error during logout:', error);
+		process.exit(1);
+	}
+});
 
 // Log in to Discord with your client's token
 
