@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const recrutement = require('../commands/recrutement/recrutement.js');
 const recrutementPanel = require('../commands/recrutement/recrutement-panel.js');
+const urgencePanel = require('../commands/urgences/urgence-panel.js');
 const { startJob } = require('../framework_utils/CronStatus.js');
 const {
 	statusChannelId,
@@ -56,6 +57,12 @@ module.exports = {
 		}
 		catch (error) {
 			await client.log('READY', 'ERROR', `Erreur lors de la restauration du panel de recrutement: ${error.stack || error}`);
+		}
+		try {
+			await urgencePanel.restore(client);
+		}
+		catch (error) {
+			await client.log('READY', 'ERROR', `Erreur lors de la restauration du panel d'urgence: ${error.stack || error}`);
 		}
 		startJob(client);
 	},

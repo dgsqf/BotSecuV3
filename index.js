@@ -11,6 +11,7 @@ client.log = createLogger(client, process.env.LOG_CHANNEL_ID || configuredLogCha
 client.statusMessage = null;
 client.commands = new Collection();
 client.cooldowns = new Collection();
+client.cooldownLogs = new Set();
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 

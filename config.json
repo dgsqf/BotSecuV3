@@ -10,5 +10,67 @@
     "rapportForumChannelId": "1548339668725137479",
     "recruitmentPanelChannelId": "1542820255393513543",
     "logChannelId": "1548415955653234759",
-    "statusChannelId": "1542822233808838666"
+    "statusChannelId": "1542822233808838666",
+    "PermissionAppelSecuRoleId": "1550077423511539782",
+    "salonUrgencePanelChannelId": "1550079315079864410",
+    "SalonsUrgences" : {
+        "brancheGen" : "1542821659566940211",
+        "EIT" : "1542823891913805895",
+        "ULB" : "1542825344984416256",
+        "UPR" : "1542826077271892009",
+        "URR" : "1542826041628688414",
+        "UMS" : "1542826101666226226",
+        "Officier" : "1550078500512202794"
+    },
+    "UrgenceDivisions": {
+        "brancheGen": { "channelId": "1542821659566940211", "roleId": "" },
+        "EIT": { "channelId": "1542823891913805895", "roleId": "1545806176992759850" },
+        "ULB": { "channelId": "1542825344984416256", "roleId": "1545809594247282808" },
+        "UPR": { "channelId": "1542826077271892009", "roleId": "1545809732298866858" },
+        "URR": { "channelId": "1542826041628688414", "roleId": "1545809728616005724" },
+        "UMS": { "channelId": "1542826101666226226", "roleId": "1545809716171645092" },
+        "Officier": { "channelId": "1550078500512202794", "roleIds": ["1542567004362379347", "1542567021055836271","1542567036054675567","1542567053708230759","1542836944457703454"] }
+    },
+    "UrgenceTypes": {
+        "prise-otage": {
+            "label": "Prise d'otage",
+            "divisions": ["EIT"],
+            "fields": []
+        },
+        "incident-biologique": {
+            "label": "Incident biologique",
+            "divisions": ["ULB"],
+            "fields": []
+        },
+        "breche-confinement": {
+            "label": "Brèche de confinement",
+            "divisions": ["URR"],
+            "fields": [{ "id": "anomalies", "label": "Anomalies hors confinement", "placeholder": "Listez les anomalies concernées" }]
+        },
+        "emeute-classe-d": {
+            "label": "Émeute de Classe-D",
+            "divisions": ["brancheGen", "EIT"],
+            "fields": []
+        },
+        "raid-hostile": {
+            "label": "RAID hostile",
+            "divisions": ["brancheGen", "EIT"],
+            "fields": [{ "id": "groupe-interet", "label": "Groupe d'intérêt", "placeholder": "Indiquez le groupe d'intérêt" }]
+        },
+        "demande-protection": {
+            "label": "Demande de protection",
+            "divisions": ["UPR"],
+            "fields": []
+        },
+        "medecin-combat": {
+            "label": "Appel médecin de combat",
+            "divisions": ["UMS"],
+            "fields": []
+        },
+        "appel-officier": {
+            "label": "Appel officier",
+            "divisions": ["Officier"],
+            "fields": []
+        }
+    }
 }

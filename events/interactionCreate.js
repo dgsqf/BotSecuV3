@@ -14,7 +14,7 @@ module.exports = {
 			return;
 		}
 		const { cooldowns } = interaction.client;
-		const cooldownLogs = interaction.client.cooldownLogs ?? new Collection();
+		const cooldownLogs = interaction.client.cooldownLogs ?? new Set();
 		interaction.client.cooldownLogs = cooldownLogs;
 
 		if (!cooldowns.has(command.data.name)) {
