@@ -1,12 +1,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { logChannelId: configuredLogChannelId } = require('./config.json');
 const { createLogger } = require('./framework_utils/Logging.js');
 
 console.log('Starting bot...');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions],
+	partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+});
 client.log = createLogger(client, process.env.LOG_CHANNEL_ID || configuredLogChannelId);
 client.statusMessage = null;
 client.commands = new Collection();

@@ -50,6 +50,8 @@ const getDivisionRoleIds = (division) => {
 	return (Array.isArray(roleIds) ? roleIds : [roleIds]).filter(Boolean);
 };
 
+const getDivisionLabel = (divisionId) => divisionId === 'brancheGen' ? 'Toute la sécurité' : divisionId;
+
 const sendEmergency = async (interaction, typeLabel, divisions, values) => {
 	const embed = new EmbedBuilder()
 		.setColor(0xFF0000)
@@ -129,7 +131,9 @@ const handleModal = async (buttonInteraction, typeId, divisions = null) => {
 };
 
 const createOtherSelector = async (buttonInteraction) => {
-	const divisions = Object.keys(UrgenceDivisions);
+	const divisions = Object.entries(UrgenceDivisions)
+		.filter(([, division]) => division?.channelId)
+		.map(([divisionId]) => divisionId);
 	const selected = new Set();
 	const selectorId = `${buttonInteraction.user.id}:${Date.now()}`;
 	const buildComponents = () => {
@@ -137,7 +141,7 @@ const createOtherSelector = async (buttonInteraction) => {
 		for (let index = 0; index < divisions.length; index += 5) {
 			rows.push(new ActionRowBuilder().addComponents(divisions.slice(index, index + 5).map((divisionId) => new ButtonBuilder()
 				.setCustomId(`urgence:autre:division:${selectorId}:${divisionId}`)
-				.setLabel(divisionId)
+				.setLabel(getDivisionLabel(divisionId))
 				.setStyle(selected.has(divisionId) ? ButtonStyle.Success : ButtonStyle.Secondary))));
 		}
 		rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder()
@@ -158,14 +162,20 @@ const createOtherSelector = async (buttonInteraction) => {
 	const message = await buttonInteraction.fetchReply();
 	const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, time: 300000 });
 	collector.on('collect', async (interaction) => {
-		if (interaction.user.id !== buttonInteraction.user.id) return;
-		if (interaction.customId.includes(':division:')) {
+		if (interaction.user.id !== buttonInteraction.user.id) {
+			return interaction.reply({ content: 'Ce sélecteur appartient à un autre utilisateur.', flags: MessageFlags.Ephemeral });
+		}
+		const divisionPrefix = `urgence:autre:division:${selectorId}:`;
+		const validateId = `urgence:autre:valider:${selectorId}`;
+		if (interaction.customId.startsWith(divisionPrefix)) {
 			const divisionId = interaction.customId.split(':').pop();
+			if (!divisions.includes(divisionId)) return interaction.deferUpdate();
 			if (selected.has(divisionId)) selected.delete(divisionId);
 			else selected.add(divisionId);
 			await interaction.update({ components: buildComponents() });
 			return;
 		}
+		if (interaction.customId !== validateId) return interaction.deferUpdate();
 		if (!selected.size) {
 			await interaction.reply({ content: 'Sélectionnez au moins une division.', flags: MessageFlags.Ephemeral });
 			return;
@@ -208,8 +218,8 @@ const createUrgencePanel = () => new Prompt({
 	.addField('**Prise d\'otage**', 'Si vous êtes témoin d’une prise d’otage, cliquez sur le bouton « Prise d’otage » pour appeler l\'Équipe d\'Intervention Tactique (EIT)')
 	.addField('**Incident biologique**', 'Si vous êtes témoin d’un incident biologique, cliquez sur le bouton « Incident biologique » pour appeler l\'Unité de Lutte contre les dangers Biologique (ULB)')
 	.addField('**Brèche de confinement**', 'Si vous êtes témoin d’une brèche de confinement, cliquez sur le bouton « Brèche de confinement » pour appeler l\'Unité de Réponse et de Reconfinement (URR)')
-	.addField('**Émeute de Classe-D**', 'Si vous êtes témoin d’une émeute de Classe-D, cliquez sur le bouton « Émeute de Classe-D » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et la Branche Générale (BG)')
-	.addField('**RAID hostile**', 'Si vous êtes témoin d’un RAID hostile, cliquez sur le bouton « RAID hostile » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et la Branche Générale (BG)')
+	.addField('**Émeute de Classe-D**', 'Si vous êtes témoin d’une émeute de Classe-D, cliquez sur le bouton « Émeute de Classe-D » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et toute la sécurité')
+	.addField('**RAID hostile**', 'Si vous êtes témoin d’un RAID hostile, cliquez sur le bouton « RAID hostile » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et toute la sécurité')
 	.addField('**Appel Medecin de Combat**', 'Si vous êtes témoin d’une situation nécessitant l’intervention d’un Médecin de Combat, cliquez sur le bouton « Appel Medecin de Combat » pour appeler l\'Unité Médicale de Sécurité (UMS)')
 	.addField('**Demande de Protection**', 'Si vous avez besoin de protection rapprochée, cliquez sur le bouton « Demande de Protection » pour appeler l\'Équipe de Protection Rapprochée (EPR)')
 	.addField('**Autre**', 'Si votre situation d’urgence n’est pas listée, cliquez sur le bouton « Autre » pour sélectionner les divisions à contacter et fournir une description de la situation.')

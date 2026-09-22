@@ -8,6 +8,13 @@
         "1545770783387684924"],
     "recruitmentResultChannelId": "1542820491411197992",
     "rapportForumChannelId": "1548339668725137479",
+    "rapportPanelChannelId": "1551998830755582104",
+    "rapportSuiviChannelId": "1551998182001475694",
+    "rapportSuiviRoleIds": ["1542567004362379347", "1542567021055836271", "1542567036054675567", "1542567053708230759", "1542836944457703454"],
+    "rapportLuEmoji": "👀",
+    "rapportPromotionEmoji": "✅",
+    "rapportReactionMessageId": "",
+    "rapportReactionEmoji": "📄",
     "recruitmentPanelChannelId": "1542820255393513543",
     "logChannelId": "1548415955653234759",
     "statusChannelId": "1542822233808838666",
@@ -23,7 +30,7 @@
         "Officier" : "1550078500512202794"
     },
     "UrgenceDivisions": {
-        "brancheGen": { "channelId": "1542821659566940211", "roleId": "" },
+        "brancheGen": { "channelId": "1542821659566940211", "roleId": "1545770783387684924" },
         "EIT": { "channelId": "1542823891913805895", "roleId": "1545806176992759850" },
         "ULB": { "channelId": "1542825344984416256", "roleId": "1545809594247282808" },
         "UPR": { "channelId": "1542826077271892009", "roleId": "1545809732298866858" },
@@ -34,7 +41,7 @@
     "UrgenceTypes": {
         "prise-otage": {
             "label": "Prise d'otage",
-            "divisions": ["EIT"],
+            "divisions": ["EIT", "brancheGen"],
             "fields": []
         },
         "incident-biologique": {

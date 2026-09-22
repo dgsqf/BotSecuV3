@@ -274,6 +274,17 @@ class Form {
 	async send(target, { onConfirm, onCancel, ephemeral = false } = {}) {
 		const pages = this._buildPages();
 		const state = { values: {}, owner: target.user || target.author, startedAt: Date.now(), page: 0 };
+		let expirationNotified = false;
+		const sendExpirationFallback = async () => {
+			if (expirationNotified || !state.owner?.send) return;
+			expirationNotified = true;
+			await state.owner.send({
+				embeds: [new EmbedBuilder()
+					.setColor(0xfee75c)
+					.setTitle('Formulaire expiré')
+					.setDescription('Votre formulaire a expiré après une période d’inactivité. Ouvrez-en un nouveau pour recommencer.')],
+			}).catch(() => null);
+		};
 		const buildPayload = ({ includeFlags = true } = {}) => ({
 			embeds: [this._embed(pages[state.page], state.page, pages.length, state.values)],
 			components: this._components(pages[state.page], state.page, pages.length),
@@ -294,7 +305,7 @@ class Form {
 				return true;
 			}
 			catch (error) {
-				if (error?.code !== 10008 && error?.status !== 404) throw error;
+				if (![10008, 10062, 40060, 50027].includes(error?.code) && error?.status !== 404) throw error;
 				return false;
 			}
 		};
@@ -314,8 +325,8 @@ class Form {
 
 					if (action === 'page') {
 						state.page = Number(value);
-						await updateCurrentMessage(buildPayload());
-						return i.deferUpdate();
+						await i.deferUpdate();
+						return updateCurrentMessage(buildPayload());
 					}
 
 					if (action === 'cancel') {
@@ -324,8 +335,8 @@ class Form {
 							.setColor(0xFF0000)
 							.setTitle('Formulaire annulé')
 							.setDescription('Vous avez annulé le formulaire.');
-						await updateCurrentMessage({ embeds: [cancelled_embed], components: [] });
 						await i.deferUpdate();
+						await updateCurrentMessage({ embeds: [cancelled_embed], components: [] });
 						return onCancel?.(this._metadata(state));
 					}
 
@@ -342,8 +353,8 @@ class Form {
 							.setColor(0x00FF00)
 							.setTitle('Formulaire envoyé')
 							.setDescription('Votre formulaire a été envoyé avec succès.');
-						await updateCurrentMessage({ embeds: [confirm_embed], components: [] });
 						await i.deferUpdate();
+						await updateCurrentMessage({ embeds: [confirm_embed], components: [] });
 						try {
 							await message.delete();
 						}
@@ -443,14 +454,39 @@ class Form {
 
 					// Champs de type select (user, users, role, roles, choice)
 					state.values[field.id] = field.type.endsWith('s') || field.multiple ? i.values : i.values[0];
+					await i.deferUpdate();
 					await updateCurrentMessage(buildPayload({ includeFlags: false }));
-					return i.deferUpdate();
+					return;
 				}
 				catch (error) {
+					if (error?.code === 10062 || error?.code === 40060 || error?.status === 404) return;
 					await i.client.log('FORM', 'ERROR', `Erreur dans le formulaire: ${error.stack || error}`);
 					const response = { embeds: [createUserErrorEmbed('le traitement du formulaire')], flags: MessageFlags.Ephemeral };
-					if (i.replied || i.deferred) await i.followUp(response);
-					else await i.reply(response);
+					try {
+						if (i.replied || i.deferred) await i.followUp(response);
+						else await i.reply(response);
+					}
+					catch (responseError) {
+						if (responseError?.code !== 10062 && responseError?.code !== 40060 && responseError?.status !== 404) throw responseError;
+					}
+				}
+			});
+			collector.on('end', async (_, reason) => {
+				if (reason !== 'time') return;
+				const expiredEmbed = new EmbedBuilder()
+					.setColor(0xfee75c)
+					.setTitle('Formulaire expiré')
+					.setDescription('Le formulaire a expiré après une période d’inactivité. Ouvrez-en un nouveau pour recommencer.');
+				try {
+					const updated = await updateCurrentMessage({ embeds: [expiredEmbed], components: [] });
+					if (!updated) await sendExpirationFallback();
+				}
+				catch (error) {
+					if ([10008, 10062, 40060, 50027].includes(error?.code) || error?.status === 404) {
+						await sendExpirationFallback();
+						return;
+					}
+					await target.client.log('FORM', 'ERROR', `Impossible d’afficher l’expiration du formulaire: ${error.stack || error}`);
 				}
 			});
 		};
