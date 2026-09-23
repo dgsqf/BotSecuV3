@@ -11,5 +11,26 @@
     "rapportReactionMessageId": "",
     "rapportReactionEmoji": "📄",
     "recruitmentPanelChannelId": "1546178437675352124",
-    "logChannelId": ""
+    "logChannelId": "",
+    "eventForumChannelId": "",
+    "eventPanelChannelId": "",
+    "eventTimezone": "Europe/Paris",
+    "eventTags": {
+        "upcoming": "",
+        "imminent": "",
+        "running": "",
+        "archived": "",
+        "test-anomalie": "",
+        "escorte-vip": "",
+        "entrainement": "",
+        "selection": "",
+        "ULB": "",
+        "URR": "",
+        "APR": "",
+        "UPR": "",
+        "UMS": "",
+        "EIT": ""
+    },
+    "eventCreationRoleIds": [],
+    "EventTypes": {}
 }

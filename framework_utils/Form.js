@@ -102,6 +102,7 @@ class Form {
 	role(id, label, options = {}) { return this.add('role', id, label, options); }
 	roles(id, label, options = {}) { return this.add('roles', id, label, options); }
 	choice(id, label, choices, options = {}) { return this.add('choice', id, label, { ...options, choices }); }
+	boolean(id, label, options = {}) { return this.add('boolean', id, label, { ...options, default: options.default ?? false }); }
 	questions(id, questions, options = {}) {
 		if (!Array.isArray(questions) || !questions.length) return this;
 		const count = Math.min(options.count ?? options.max ?? 1, questions.length);
@@ -176,6 +177,7 @@ class Form {
 
 	_formatValue(value) {
 		if (value == null || value === '') return ' ';
+		if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
 		if (typeof value === 'object') {
 			if (value.day != null || value.month != null || value.year != null || value.hour != null || value.minute != null) {
 				const day = value.day ?? '--';
@@ -197,12 +199,17 @@ class Form {
 		return `${text.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
 	}
 
+	_capitalizeLabel(label) {
+		const text = String(label ?? '').replace(/\s+/g, ' ').trim();
+		return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text;
+	}
+
 	_embed(page, index, total, values = {}) {
 		const currentFields = page?.fields || [];
 		const fieldsSummary = currentFields.map((field) => {
 			const currentValue = values[field.id];
 			const displayValue = this._formatValue(currentValue);
-			return `### ${field.label}\n${displayValue}`;
+			return `### ${this._capitalizeLabel(field.label)}\n${displayValue}`;
 		}).join('\n\n');
 
 		const sectionLine = page?.section ? (() => {
@@ -218,27 +225,36 @@ class Form {
 			.setFooter({ text: total > 1 ? `Page ${index + 1}/${total}` : 'Formulaire' });
 	}
 
-	_components(page, index, total) {
+	_components(page, index, total, values = {}) {
 		const rows = [];
 		const fieldButtons = [];
 		for (const field of page.fields) {
 			const customId = this._id(field.type, field.id);
 			let component;
+			if (field.type === 'boolean') {
+				const value = Boolean(values[field.id] ?? field.default ?? false);
+				component = new ButtonBuilder()
+					.setCustomId(customId)
+					.setLabel(`${this._truncateLabel(this._capitalizeLabel(field.label), 70)} : ${value ? 'Oui' : 'Non'}`)
+					.setStyle(value ? ButtonStyle.Success : ButtonStyle.Secondary);
+				rows.push(new ActionRowBuilder().addComponents(component));
+				continue;
+			}
 			if (field.type === 'text' || field.type === 'number' || field.type === 'date' || field.type === 'question') {
 				component = new ButtonBuilder()
 					.setCustomId(customId)
-					.setLabel(this._truncateLabel(field.label, 80))
+					.setLabel(this._truncateLabel(this._capitalizeLabel(field.label), 80))
 					.setStyle(ButtonStyle.Secondary);
 				fieldButtons.push(component);
 				continue;
 			}
 			if (field.type === 'user' || field.type === 'users') {
-				component = new UserSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._truncateLabel(field.label, 100))
+				component = new UserSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._truncateLabel(this._capitalizeLabel(field.label), 100))
 					.setMinValues(field.required === false ? 0 : 1)
 					.setMaxValues(field.type === 'user' ? 1 : Math.min(field.max || MAX_SELECT_VALUES, MAX_SELECT_VALUES));
 			}
 			else if (field.type === 'role' || field.type === 'roles') {
-				component = new RoleSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._truncateLabel(field.label, 100))
+				component = new RoleSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._truncateLabel(this._capitalizeLabel(field.label), 100))
 					.setMinValues(field.required === false ? 0 : 1)
 					.setMaxValues(field.type === 'role' ? 1 : Math.min(field.max || MAX_SELECT_VALUES, MAX_SELECT_VALUES));
 			}
@@ -246,7 +262,7 @@ class Form {
 				const choices = (field.choices || field.answers || field.options || []).slice(0, MAX_SELECT_VALUES).map((item) => typeof item === 'string'
 					? { label: item, value: item } : item);
 				const maxValues = field.multiple ? Math.min(field.max ?? choices.length, choices.length || 1, MAX_SELECT_VALUES) : 1;
-				component = new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._truncateLabel(field.label, 100))
+				component = new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(this._capitalizeLabel(field.label).slice(0, 100))
 					.addOptions(choices).setMinValues(field.required === false ? 0 : (field.min ?? 1))
 					.setMaxValues(maxValues);
 			}
@@ -273,7 +289,12 @@ class Form {
 
 	async send(target, { onConfirm, onCancel, ephemeral = false } = {}) {
 		const pages = this._buildPages();
-		const state = { values: {}, owner: target.user || target.author, startedAt: Date.now(), page: 0 };
+		const state = {
+			values: Object.fromEntries(this.fields.filter((field) => field.type === 'boolean' && field.default !== undefined).map((field) => [field.id, Boolean(field.default)])),
+			owner: target.user || target.author,
+			startedAt: Date.now(),
+			page: 0,
+		};
 		let expirationNotified = false;
 		const sendExpirationFallback = async () => {
 			if (expirationNotified || !state.owner?.send) return;
@@ -287,7 +308,7 @@ class Form {
 		};
 		const buildPayload = ({ includeFlags = true } = {}) => ({
 			embeds: [this._embed(pages[state.page], state.page, pages.length, state.values)],
-			components: this._components(pages[state.page], state.page, pages.length),
+			components: this._components(pages[state.page], state.page, pages.length, state.values),
 			...(includeFlags && ephemeral ? { flags: MessageFlags.Ephemeral } : {}),
 		});
 
@@ -366,6 +387,13 @@ class Form {
 					}
 
 					if (!field) return;
+
+					if (field.type === 'boolean') {
+						state.values[field.id] = !(state.values[field.id] ?? field.default ?? false);
+						await i.deferUpdate();
+						await updateCurrentMessage(buildPayload({ includeFlags: false }));
+						return;
+					}
 
 					if (field.type === 'text' || field.type === 'number' || field.type === 'question') {
 						const modal = new ModalBuilder().setCustomId(i.customId).setTitle(field.label.slice(0, 45));

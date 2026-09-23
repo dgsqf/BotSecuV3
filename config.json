@@ -20,6 +20,89 @@
     "statusChannelId": "1542822233808838666",
     "PermissionAppelSecuRoleId": "1550077423511539782",
     "salonUrgencePanelChannelId": "1550079315079864410",
+    "eventForumChannelId": "1548339750769786930",
+    "eventPanelChannelId": "1552353001702690946",
+    "eventTimezone": "Europe/Paris",
+    "eventTags": {
+        "upcoming": "1548340208804823150",
+        "imminent": "1548340142295748709",
+        "running": "1548339999064461413",
+        "archived": "1548339940285489172",
+        "test-anomalie": "1548340326681550959",
+        "escorte-vip": "1548340437117440041",
+        "entrainement": "1548340490770976919",
+        "selection": "1548340533452087436",
+        "ULB": "1548340763606261770",
+        "URR": "1548340701740146759",
+        "APR": "1548340638800552085",
+        "ULB-division": "1548340763606261770",
+        "URR-division": "1548340701740146759",
+        "UPR": "1548340638800552085",
+        "UMS": "1548340731331219456",
+        "EIT": "1548340789489303553"
+    },
+    "eventCreationRoleIds": [],
+    "EventTypes": {
+        "test-anomalie": {
+            "label": "Test Anomalie",
+            "creationRoleIds": [],
+            "sections": [
+                { "id": "general", "label": "Informations générales", "description": "Date et lieu du test." },
+                { "id": "details", "label": "Détails de l'expérience", "description": "Décrivez l'anomalie et les besoins opérationnels." }
+            ],
+            "fields": [
+                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
+                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
+                { "type": "text", "id": "anomalie", "label": "Anomalie", "paragraph": true, "required": true, "section": "details" },
+                { "type": "number", "id": "classeD", "label": "Nombre de Classe-D", "min": 0, "required": true, "section": "details" },
+                { "type": "number", "id": "securite", "label": "Nombre de sécurité demandé", "min": 0, "required": true, "section": "details" },
+                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "details" },
+                { "type": "boolean", "id": "besoinULB", "label": "Besoin d'ULB", "required": true, "section": "details" },
+                { "type": "boolean", "id": "besoinURR", "label": "Besoin d'URR", "required": true, "section": "details" }
+            ]
+        },
+        "escorte-vip": {
+            "label": "Escorte VIP",
+            "creationRoleIds": [],
+            "sections": [
+                { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'escorte." },
+                { "id": "instructions", "label": "Consignes", "description": "Informations utiles pour l'escorte." }
+            ],
+            "fields": [
+                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
+                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
+                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "instructions" }
+            ]
+        },
+        "entrainement": {
+            "label": "Entrainement",
+            "creationRoleIds": [],
+            "sections": [
+                { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'entraînement." },
+                { "id": "programme", "label": "Programme", "description": "Décrivez le contenu de l'entraînement." }
+            ],
+            "fields": [
+                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
+                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
+                { "type": "text", "id": "description", "label": "Description", "paragraph": true, "required": true, "section": "programme" },
+                { "type": "choice", "id": "division", "label": "Division", "choices": ["ULB", "URR", "UPR", "UMS", "EIT", "Toute la sécurité"], "required": true, "section": "programme" }
+            ]
+        },
+        "selection": {
+            "label": "Sélection",
+            "creationRoleIds": [],
+            "sections": [
+                { "id": "general", "label": "Informations générales", "description": "Date et lieu de la sélection." },
+                { "id": "instructions", "label": "Consignes", "description": "Consignes et division concernée." }
+            ],
+            "fields": [
+                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
+                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
+                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "instructions" },
+                { "type": "choice", "id": "division", "label": "Division", "choices": ["ULB", "URR", "UPR", "UMS", "EIT"], "required": true, "section": "instructions" }
+            ]
+        }
+    },
     "SalonsUrgences" : {
         "brancheGen" : "1542821659566940211",
         "EIT" : "1542823891913805895",
