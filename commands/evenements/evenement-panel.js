@@ -4,7 +4,7 @@ const evenement = require('./evenement.js');
 const config = require('../../config.json');
 
 module.exports = {
-	data: new SlashCommandBuilder().setName('evenement-panel').setDescription('Envoie le panel de création d’évènements.'),
+	data: new SlashCommandBuilder().setName('evenement-panel').setDescription('Envoie le panel de création des événements.'),
 	async execute(interaction) {
 		if (!interaction.member?.permissions?.has('Administrator')) return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Accès refusé').setDescription('Cette commande est réservée aux administrateurs.')], flags: MessageFlags.Ephemeral });
 		const channel = await interaction.client.channels.fetch(config.eventPanelChannelId).catch(() => null);

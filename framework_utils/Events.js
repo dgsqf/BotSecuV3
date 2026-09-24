@@ -22,6 +22,10 @@ let restoreInProgress = false;
 const getTypes = () => config.EventTypes || {};
 const getTags = () => config.eventTags || {};
 const getType = (typeId) => getTypes()[typeId] || null;
+const getAnnouncementChannelId = (typeId) => ({
+	entrainement: config.trainingChannelId,
+	selection: config.selectionChannelId,
+}[typeId]);
 
 const hasEventPermission = (interaction, type) => {
 	if (interaction.member?.permissions?.has?.('Administrator')) return true;
@@ -150,6 +154,12 @@ const publishEvent = async (interaction, typeId, values) => {
 	const message = await thread.fetchStarterMessage();
 	await message.edit({ embeds: [buildEmbed(metadata, type, values)] });
 	await message.react(PRESENT_EMOJI);
+	const announcementChannelId = getAnnouncementChannelId(typeId);
+	if (announcementChannelId) {
+		const announcementChannel = await interaction.client.channels.fetch(announcementChannelId);
+		if (!announcementChannel?.isTextBased?.() || !announcementChannel.send) throw new Error('Le salon d’annonce de l’évènement est absent ou mal configuré.');
+		await announcementChannel.send({ embeds: [buildEmbed(metadata, type, values)] });
+	}
 	return { thread, message, metadata };
 };
 

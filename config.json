@@ -23,6 +23,8 @@
     "eventForumChannelId": "1548339750769786930",
     "eventPanelChannelId": "1552353001702690946",
     "eventTimezone": "Europe/Paris",
+    "trainingChannelId": "1542821413214228540",
+    "selectionChannelId": "1542821440191995904",
     "eventTags": {
         "upcoming": "1548340208804823150",
         "imminent": "1548340142295748709",
@@ -45,7 +47,7 @@
     "EventTypes": {
         "test-anomalie": {
             "label": "Test Anomalie",
-            "creationRoleIds": [],
+            "creationRoleIds": ["1552408240900407358"],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu du test." },
                 { "id": "details", "label": "Détails de l'expérience", "description": "Décrivez l'anomalie et les besoins opérationnels." }
@@ -63,7 +65,7 @@
         },
         "escorte-vip": {
             "label": "Escorte VIP",
-            "creationRoleIds": [],
+            "creationRoleIds": [1552408270147289178],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'escorte." },
                 { "id": "instructions", "label": "Consignes", "description": "Informations utiles pour l'escorte." }
@@ -76,7 +78,7 @@
         },
         "entrainement": {
             "label": "Entrainement",
-            "creationRoleIds": [],
+            "creationRoleIds": [1552408405774176396],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'entraînement." },
                 { "id": "programme", "label": "Programme", "description": "Décrivez le contenu de l'entraînement." }
@@ -90,7 +92,7 @@
         },
         "selection": {
             "label": "Sélection",
-            "creationRoleIds": [],
+            "creationRoleIds": [1552408448719913103],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de la sélection." },
                 { "id": "instructions", "label": "Consignes", "description": "Consignes et division concernée." }

@@ -10,10 +10,34 @@ const { rapportPanelChannelId } = require('../../config.json');
 
 const PANEL_ROLE_ID = '1542836944457703454';
 
+const REPORT_PANEL_FIELDS = [
+	{
+		name: 'I. Types de rapports : patrouille et incident',
+		value: '╰─ **Rapport de patrouille**\nLes rapports de patrouille sont équivalents à des prises de service. Vous pouvez en rédiger à chaque fois que vous passez du temps en tant que membre de la sécurité sur le serveur. Ils permettent notamment de montrer votre activité et votre implication au sein du département.\n\n╰─ **Rapport d’incident**\nLes rapports d’incident sont plus rares. Vous devez en rédiger lorsque vous êtes témoin d’une situation inhabituelle. Cela peut aller d’un incident mineur, comme une simple altercation entre deux membres du personnel, à un événement majeur, comme une attaque de grande envergure ou une importante brèche de déconfinement.',
+	},
+	{
+		name: '',
+		value: '╰─ **Rapport de personnel**\nLes rapports de personnel peuvent être utilisés en cas de différend avec un membre du personnel, qu’il appartienne à la sécurité ou à l’installation. Vous devez y rapporter l’ensemble des détails dont vous disposez. Si le rapport est jugé pertinent, une enquête pourra être ouverte ou relancée.\n\n╰─ **Rapport d’expérience**\nLorsque vous participez à une expérience, vous devez rédiger un rapport concernant celle-ci et y préciser tous les éléments importants. Vous devez notamment signaler les éventuelles mesures de sécurité qui n’ont pas été respectées par le scientifique, les classes-D ou les autres membres de la sécurité présents avec vous.',
+	},
+	{
+		name: 'II. Consignes de rédaction',
+		value: 'Les rapports ne sont pas obligatoires. Cependant, si vous décidez d’en rédiger un, celui-ci doit être clair, complet et précis.\n\nL’utilisation de l’IA est autorisée uniquement pour corriger votre texte et le rendre plus clair. Elle ne doit en aucun cas modifier ou altérer le contenu du rapport.',
+	},
+	{
+		name: 'Informations à relever',
+		value: 'Afin de rendre votre rapport aussi précis que possible, pensez à relever un maximum d’informations :\n\n╰─ Les noms des membres du personnel concernés\n╰─ Les dates et heures\n╰─ Les lieux\n╰─ Les faits observés\n╰─ Les circonstances de l’événement\n╰─ Tout autre élément pouvant être pertinent',
+	},
+	{
+		name: 'Utilité des rapports',
+		value: 'Plus votre rapport sera précis et complet, plus il sera utile à la direction.\n\nLes rapports sont notamment utilisés par la direction afin d’assurer le suivi des membres de la sécurité et peuvent être pris en compte dans le cadre de promotions ou de mesures administratives.',
+	},
+];
+
 const createReportPanel = () => new Prompt({
 	title: 'Rapports de sécurité',
-	description: 'Cliquez sur le bouton ci-dessous pour ouvrir un rapport. \n**ATTENTION :** Ne gardez pas un formulaire de création de rapportouvert pour plus de 15 minutes, celui-ci expirera.',
+	description: 'En réagissant au bouton ci-dessous, vous lancerez une procédure permettant de créer un rapport.',
 	color: 0x5865f2,
+	fields: REPORT_PANEL_FIELDS,
 	metadata: { type: 'rapport-panel' },
 	buttons: [
 		{
@@ -42,7 +66,7 @@ module.exports = {
 	cooldown: 600,
 	data: new SlashCommandBuilder()
 		.setName('rapport-panel')
-		.setDescription('Envoie le panel permettant d’ouvrir un rapport.'),
+		.setDescription('Envoie le panel de création des rapports.'),
 	async execute(interaction) {
 		if (!interaction.member.roles.cache.has(PANEL_ROLE_ID)) {
 			return interaction.reply({
