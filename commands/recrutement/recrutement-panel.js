@@ -7,6 +7,8 @@ const {
 const Prompt = require('../../framework_utils/Prompt.js');
 const recrutement = require('./recrutement.js');
 const { recruitmentPanelChannelId } = require('../../config.json');
+const REQUIRED_ROLE_ID = '1542836944457703454';
+const canExecute = (interaction) => Boolean(interaction.member?.roles?.cache?.has(REQUIRED_ROLE_ID));
 
 const createRecruitmentPanel = () => new Prompt({
 	title: 'Recrutement - Département de la sécurité',
@@ -42,11 +44,9 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('recrutement-panel')
 		.setDescription('Envoie le panel du formulaire de recrutement dans le salon configuré.'),
+	canExecute,
 	async execute(interaction) {
-		const REQUIRED_ROLE_ID = '1542836944457703454';
-
-		// Step 1: Check if the user (interaction.member) has the required role
-		if (!interaction.member.roles.cache.has(REQUIRED_ROLE_ID)) {
+		if (!canExecute(interaction)) {
 			denied_access_embed = new EmbedBuilder()
 				.setColor(0xFF0000)
 				.setTitle('Accès refusé')

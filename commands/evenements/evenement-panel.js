@@ -3,10 +3,13 @@ const Prompt = require('../../framework_utils/Prompt.js');
 const evenement = require('./evenement.js');
 const config = require('../../config.json');
 
+const canExecute = (interaction) => Boolean(interaction.member?.permissions?.has('Administrator'));
+
 module.exports = {
 	data: new SlashCommandBuilder().setName('evenement-panel').setDescription('Envoie le panel de création des événements.'),
+	canExecute,
 	async execute(interaction) {
-		if (!interaction.member?.permissions?.has('Administrator')) return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Accès refusé').setDescription('Cette commande est réservée aux administrateurs.')], flags: MessageFlags.Ephemeral });
+		if (!canExecute(interaction)) return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Accès refusé').setDescription('Cette commande est réservée aux administrateurs.')], flags: MessageFlags.Ephemeral });
 		const channel = await interaction.client.channels.fetch(config.eventPanelChannelId).catch(() => null);
 		if (!channel?.isTextBased()) return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Configuration invalide').setDescription('Le salon du panel évènement est absent ou mal configuré.')], flags: MessageFlags.Ephemeral });
 		await evenement.createPanel(channel);

@@ -9,6 +9,7 @@ const rapports = require('./rapports.js');
 const { rapportPanelChannelId } = require('../../config.json');
 
 const PANEL_ROLE_ID = '1542836944457703454';
+const canExecute = (interaction) => Boolean(interaction.member?.roles?.cache?.has(PANEL_ROLE_ID));
 
 const REPORT_PANEL_FIELDS = [
 	{
@@ -67,8 +68,9 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('rapport-panel')
 		.setDescription('Envoie le panel de création des rapports.'),
+	canExecute,
 	async execute(interaction) {
-		if (!interaction.member.roles.cache.has(PANEL_ROLE_ID)) {
+		if (!canExecute(interaction)) {
 			return interaction.reply({
 				embeds: [new EmbedBuilder()
 					.setColor(0xFF0000)

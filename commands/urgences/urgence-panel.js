@@ -186,6 +186,7 @@ const createOtherSelector = async (buttonInteraction) => {
 };
 
 const hasPermission = (interaction) => interaction.member.roles.cache.has(PermissionAppelSecuRoleId);
+const canPublishPanel = (interaction) => Boolean(interaction.member?.roles?.cache?.has(REQUIRED_PANEL_ROLE_ID));
 
 const createUrgencePanel = () => new Prompt({
 	title: '🚨・Appel d\'urgence',
@@ -230,9 +231,11 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('urgence-panel')
 		.setDescription('Affiche le panneau d’appel d’urgence.'),
+	canExecute: canPublishPanel,
+	canUseCalls: hasPermission,
 
 	async execute(interaction) {
-		if (!interaction.member.roles.cache.has(REQUIRED_PANEL_ROLE_ID)) {
+		if (!canPublishPanel(interaction)) {
 			return interaction.reply({
 				embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('Accès refusé').setDescription('Vous devez posséder le rôle requis pour utiliser cette commande.')],
 				flags: MessageFlags.Ephemeral,

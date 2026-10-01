@@ -9,6 +9,7 @@ const {
 	activityPointsPerReport = 0,
 } = require('../../config.json');
 const REQUIRED_ROLE_ID = '1545770783387684924';
+const hasReportRole = (member) => Boolean(member?.roles?.cache?.has(REQUIRED_ROLE_ID));
 
 const getUserThread = async (forumChannel, username) => {
 	const cacheThreads = forumChannel?.threads?.cache ?? [];
@@ -154,7 +155,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 	const member = interaction.member || await reportGuild?.members.fetch(interaction.user.id).catch(() => null);
 
 	// Step 1: Check if the user (interaction.member) has the required role
-	if (!member?.roles.cache.has(REQUIRED_ROLE_ID)) {
+	if (!hasReportRole(member)) {
 		denied_access_embed = new EmbedBuilder()
 			.setColor(0xFF0000)
 			.setTitle('Accès refusé')
@@ -317,6 +318,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('rapport')
 		.setDescription('Crée un nouveau rapport'),
+	canExecute: (interaction) => hasReportRole(interaction.member),
 	execute: startReport,
 	startReport,
 	parseServiceDurationHours,
