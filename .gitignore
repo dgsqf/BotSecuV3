@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+data/*.sqlite
+data/*.sqlite-*
 
 # Environment variables and local secrets
 .env

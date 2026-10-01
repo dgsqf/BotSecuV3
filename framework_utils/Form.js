@@ -287,7 +287,7 @@ class Form {
 		return null;
 	}
 
-	async send(target, { onConfirm, onCancel, ephemeral = false } = {}) {
+	async send(target, { onConfirm, onCancel, ephemeral = false, followUp = false } = {}) {
 		const pages = this._buildPages();
 		const state = {
 			values: Object.fromEntries(this.fields.filter((field) => field.type === 'boolean' && field.default !== undefined).map((field) => [field.id, Boolean(field.default)])),
@@ -316,7 +316,7 @@ class Form {
 		let collector;
 		const updateCurrentMessage = async (nextPayload) => {
 			try {
-				if (target.isMessage?.()) {
+				if (target.isMessage?.() || followUp) {
 					if (!message || !message.editable) return false;
 					await message.edit(nextPayload);
 				}
@@ -522,6 +522,9 @@ class Form {
 		try {
 			if (target.isMessage?.()) {
 				message = await target.channel.send(buildPayload({ includeFlags: true }));
+			}
+			else if (followUp) {
+				message = await target.followUp({ ...buildPayload({ includeFlags: true }), fetchReply: true });
 			}
 			else if (target.deferred || target.replied) {
 				await target.editReply(buildPayload({ includeFlags: true }));

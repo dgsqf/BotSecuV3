@@ -7,12 +7,14 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "start": "node --env-file=.env .",
     "lint": "eslint . --fix",
-    "deploy-commands": "node --env-file=.env deploy_commands.js"
+    "deploy-commands": "node --env-file=.env deploy_commands.js",
+    "list-roles": "node --env-file=.env scripts/list-roles.js"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "cron": "^4.4.0",
     "discord.js": "^14.27.0"
   },

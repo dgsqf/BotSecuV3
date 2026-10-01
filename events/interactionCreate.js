@@ -4,6 +4,22 @@ const { createUserErrorEmbed } = require('../framework_utils/Logging.js');
 module.exports = {
 	name: Events.InteractionCreate,
 	async execute(interaction) {
+		if (interaction.isAutocomplete()) {
+			const autocompleteCommand = interaction.client.commands.get(interaction.commandName);
+			if (autocompleteCommand?.autocomplete) {
+				try {
+					await autocompleteCommand.autocomplete(interaction);
+				}
+				catch (error) {
+					await interaction.client.log('INTERACTION CREATE', 'ERROR', `Erreur d’autocomplétion ${interaction.commandName}: ${error.stack || error}`);
+					if (!interaction.responded) await interaction.respond([]).catch(() => null);
+				}
+			}
+			else {
+				await interaction.respond([]).catch(() => null);
+			}
+			return;
+		}
 		if (!interaction.isChatInputCommand()) return;
 
 		const command = interaction.client.commands.get(interaction.commandName);
@@ -40,7 +56,7 @@ module.exports = {
 		    });
 				const cooldownLogKey = `${command.data.name}:${interaction.user.id}`;
 				if (!cooldownLogs.has(cooldownLogKey)) {
-					cooldownLogs.set(cooldownLogKey, true);
+					cooldownLogs.add(cooldownLogKey);
 					setTimeout(() => cooldownLogs.delete(cooldownLogKey), Math.max(0, expirationTime - now));
 					await interaction.client.log('COOLDOWN', 'WARN', `L'utilisateur ${interaction.user.tag} <@${interaction.user.id}> a utilisé la commande ${command.data.name} trop de fois.`);
 				}

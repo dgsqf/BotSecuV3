@@ -15,6 +15,110 @@
     "rapportPromotionEmoji": "✅",
     "rapportReactionMessageId": "",
     "rapportReactionEmoji": "📄",
+    "personnelStaffRoleIds": ["1542836944457703454","1542567053708230759","1542567036054675567"],
+    "personnelAdminRoleIds": ["1542836944457703454", "1523457212293451948", "1523457385102839948"],
+    "personnelRankLimits": {
+        "branches": {
+            "EIT": { "major-eit": 1, "lieutenant-eit": 1, "capitaine-eit": 1 },
+            "BG": { "major": 1, "lieutenant": 1, "capitaine-equipes": 1 },
+            "COMMANDEMENT": { "commandant-operations": 1, "chef-securite": 1 },
+            "DIRECTION": { "directeur": 1, "directeur-adjoint": 1 },
+            "COMMISSION": { "commissaire-conseil-surete": 1 }
+        },
+        "divisions": {
+            "ULB": { "major": 1, "lieutenant": 1 },
+            "URR": { "major": 1, "lieutenant": 1 },
+            "UPR": { "major": 1, "lieutenant": 1 },
+            "UMS": { "major": 1, "lieutenant": 1 }
+        }
+    },
+    "personnelManualRoleGroups": {
+        "Direction": ["1523457212293451948", "1523457385102839948"],
+        "Commission de sûreté": ["1542558372807708813", "1542558420471910490"]
+    },
+    "promotionChannelId": "1542821056685805599",
+    "sanctionTypes": ["Avertissement", "Blâme", "Suspension", "Rétrogradation", "Radiation"],
+    "activityPointsPerReport": 1,
+    "personnelBranchRoleIds": {
+        "EIT": ["1545806176992759850"],
+        "BG": ["1542562596308385874", "1545770783387684924"],
+        "COMMANDEMENT": ["1542554938855395348"]
+    },
+    "personnelDivisionRoleIds": {
+        "ULB": ["1542564253133963275", "1545809594247282808", "1545809518464733296"],
+        "URR": ["1542564407996063784", "1545809728616005724", "1545809518464733296"],
+        "UPR": ["1542565428960960602", "1545809732298866858", "1545809518464733296"],
+        "UMS": ["1542565870444879953", "1545809716171645092", "1545809518464733296"]
+    },
+    "personnelIraRoleIds": {
+        "1": ["1542566165518356621", "1542566214197448816"],
+        "2": ["1542566165518356621", "1542566977279758346"],
+        "3": ["1542566165518356621", "1542566992060358747"],
+        "4": ["1542566165518356621", "1542567004362379347"],
+        "5": ["1542566165518356621", "1542567021055836271"],
+        "6": ["1542566165518356621", "1542567036054675567"],
+        "7": ["1542566165518356621", "1542567053708230759"]
+    },
+    "personnelRankRoleIds": {
+        "branches": {
+            "EIT": {
+                "recrue-eit": ["1542563227404337203"],
+                "operateur-eit": ["1542563184681025566"],
+                "sergent-eit": ["1542563061775470674"],
+                "adjudant-eit": ["1542563060932284568"],
+                "major-eit": ["1542563017525432401"],
+                "lieutenant-eit": ["1542562922729840641"],
+                "capitaine-eit": ["1542562693481762976"]
+            },
+            "BG": {
+                "agent-securite": ["1542563940259594280"],
+                "agent-premiere-classe": ["1542563548755009647"],
+                "caporal": ["1542563528995508375"],
+                "caporal-chef": ["1542563506509975552"],
+                "sergent": ["1542563479549124638"],
+                "adjudant": ["1542563453489774644"],
+                "major": ["1542563427208273980"],
+                "lieutenant": ["1542563391208689664"],
+                "capitaine-equipes": ["1542562807810363551"]
+            },
+            "COMMANDEMENT": {
+                "commandant-operations": ["1542555418126192693"],
+                "chef-securite": ["1542555036821749770"]
+            }
+        },
+        "divisions": {
+            "ULB": {
+                "recrue": ["1542564715010457660"],
+                "operateur": ["1542564697948028988"],
+                "sergent": ["1542564679904272464"],
+                "adjudant": ["1542564634601459752"],
+                "major": ["1542564616343789598"],
+                "lieutenant": ["1542564570919469117"]
+            },
+            "URR": {
+                "recrue": ["1542565122357076008"],
+                "operateur": ["1542565097862467704"],
+                "sergent": ["1542565074965893120"],
+                "adjudant": ["1542565056422871133"],
+                "major": ["1542565030229446820"],
+                "lieutenant": ["1542565012680343572"]
+            },
+            "UPR": {
+                "recrue": ["1542565659622252624"],
+                "agent-protection": ["1542565638726357062"],
+                "responsable-equipe": ["1542565617973071932"],
+                "major": ["1542565593738379344"],
+                "lieutenant": ["1542565572406157473"]
+            },
+            "UMS": {
+                "recrue": ["1542566032605188106"],
+                "agent-medicale": ["1542566012803874846"],
+                "major": ["1542565995556765836"],
+                "lieutenant": ["1542565968633405461"]
+            }
+        }
+    },
+    "promotionDirectMessages": false,
     "recruitmentPanelChannelId": "1542820255393513543",
     "logChannelId": "1548415955653234759",
     "statusChannelId": "1542822233808838666",
@@ -65,7 +169,7 @@
         },
         "escorte-vip": {
             "label": "Escorte VIP",
-            "creationRoleIds": [1552408270147289178],
+            "creationRoleIds": ["1552408270147289178"],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'escorte." },
                 { "id": "instructions", "label": "Consignes", "description": "Informations utiles pour l'escorte." }
@@ -78,7 +182,7 @@
         },
         "entrainement": {
             "label": "Entrainement",
-            "creationRoleIds": [1552408405774176396],
+            "creationRoleIds": ["1552408405774176396"],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'entraînement." },
                 { "id": "programme", "label": "Programme", "description": "Décrivez le contenu de l'entraînement." }
@@ -92,7 +196,7 @@
         },
         "selection": {
             "label": "Sélection",
-            "creationRoleIds": [1552408448719913103],
+            "creationRoleIds": ["1552408448719913103"],
             "sections": [
                 { "id": "general", "label": "Informations générales", "description": "Date et lieu de la sélection." },
                 { "id": "instructions", "label": "Consignes", "description": "Consignes et division concernée." }

@@ -1,10 +1,12 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder, time, TimestampStyles } = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
+const Personnel = require('../../framework_utils/Personnel.js');
 const {
 	rapportForumChannelId,
 	rapportSuiviChannelId,
 	rapportLuEmoji = '👀',
 	rapportPromotionEmoji = '✅',
+	activityPointsPerReport = 0,
 } = require('../../config.json');
 const REQUIRED_ROLE_ID = '1545770783387684924';
 
@@ -25,6 +27,42 @@ const formatDiscordDate = (dateValue) => {
 	const isoDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
 	if (Number.isNaN(isoDate.getTime())) return 'Non renseignée';
 	return time(isoDate, TimestampStyles.ShortDateTime);
+};
+
+const parseServiceDurationHours = (value) => {
+	if (value == null || value === '') return null;
+	if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+	if (typeof value !== 'string') return null;
+
+	const normalized = value.trim().replace(/,/g, '.').toLowerCase();
+	if (!normalized) return null;
+	if (/^\d+(?:\.\d+)?$/.test(normalized)) return Number(normalized);
+
+	const compactMatch = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|heure|heures|hrs)\s*(\d{1,2})(?:\s*(?:m|min|minute|minutes))?$/);
+	if (compactMatch) {
+		const hours = Number(compactMatch[1]);
+		const minutes = Number(compactMatch[2]);
+		if (Number.isFinite(hours) && Number.isFinite(minutes) && minutes >= 0 && minutes < 60) return hours + (minutes / 60);
+		return null;
+	}
+
+	const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|heure|heures|hrs)/);
+	const minuteMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)/);
+	const colonMatch = normalized.match(/^(\d+):(\d{1,2})$/);
+
+	if (colonMatch) {
+		const hours = Number(colonMatch[1]);
+		const minutes = Number(colonMatch[2]);
+		if (Number.isFinite(hours) && Number.isFinite(minutes) && minutes >= 0 && minutes < 60) return hours + (minutes / 60);
+		return null;
+	}
+
+	const hours = hourMatch ? Number(hourMatch[1]) : 0;
+	const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
+	if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+	if (!hourMatch && !minuteMatch && !/\d/.test(normalized)) return null;
+	const total = hours + (minutes / 60);
+	return total > 0 ? total : null;
 };
 
 const publishReportTracking = async (interaction, guild, reportType, reportTitle, formMeta, thread, reportMessage) => {
@@ -205,6 +243,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 						? 'Rapport d\'incident'
 						: reportType === 'prise-service' ? 'Rapport de prise de service' : reportType === 'experience' ? 'Rapport d\'expérience' : 'Rapport concernant le personnel';
 					const reportDate = formatDiscordDate(reportData.date);
+					const serviceHours = reportType === 'prise-service' ? parseServiceDurationHours(reportData.duree) : null;
 					const embed = new EmbedBuilder()
 						.setColor(0x5865f2)
 						.setTitle(`📄 ${reportTitle}`)
@@ -238,6 +277,25 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 						.setTimestamp();
 
 					const reportMessage = await thread.send({ embeds: [embed] });
+					try {
+						if (reportType === 'prise-service' && serviceHours != null) {
+							await Personnel.addActivityHours(interaction.client, formMeta.user_id, serviceHours, {
+								source: 'rapport',
+								reason: `Rapport de prise de service (${String(reportData.duree).trim()})`,
+								actorId: formMeta.user_id,
+							});
+						}
+						if (Number.isFinite(activityPointsPerReport) && activityPointsPerReport > 0) {
+							await Personnel.addActivityPoints(interaction.client, formMeta.user_id, activityPointsPerReport, {
+								source: 'rapport',
+								reason: `Rapport de type ${reportType}`,
+								actorId: formMeta.user_id,
+							});
+						}
+					}
+					catch (error) {
+						await interaction.client.log('RAPPORT', 'ERROR', `Le rapport a été envoyé, mais ses points d’activité et/ou ses heures n’ont pas été ajoutés: ${error.stack || error}`);
+					}
 					await publishReportTracking(interaction, reportGuild, reportType, reportTitle, formMeta, thread, reportMessage);
 					await interaction.client.log('RAPPORT', 'INFO', `Rapport de type "${reportType}" soumis par ${formMeta.username} <@${formMeta.user_id}> dans le thread ${thread.name} <#${thread.id}>.`);
 					await interaction.followUp({
@@ -261,4 +319,5 @@ module.exports = {
 		.setDescription('Crée un nouveau rapport'),
 	execute: startReport,
 	startReport,
+	parseServiceDurationHours,
 };
