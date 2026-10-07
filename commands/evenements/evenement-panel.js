@@ -1,9 +1,10 @@
 const { EmbedBuilder, MessageFlags, SlashCommandBuilder } = require('discord.js');
 const Prompt = require('../../framework_utils/Prompt.js');
+const Permissions = require('../../framework_utils/Permissions.js');
 const evenement = require('./evenement.js');
 const config = require('../../config.json');
 
-const canExecute = (interaction) => Boolean(interaction.member?.permissions?.has('Administrator'));
+const canExecute = (interaction) => Permissions.hasPermission(interaction, 'evenements.panel');
 
 module.exports = {
 	data: new SlashCommandBuilder().setName('evenement-panel').setDescription('Envoie le panel de création des événements.'),

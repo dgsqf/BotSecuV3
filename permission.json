@@ -1,0 +1,174 @@
+{
+  "personnel": {
+    "description": "Accès au dashboard, aux dossiers individuels, à l’activité, aux sanctions et à la gestion du personnel.",
+    "permissions": {
+      "dashboard": {
+        "description": "Ouvrir le dashboard sans personnage enregistré. Un membre avec un profil peut toujours consulter ses propres données.",
+        "roles": [
+          "1542836944457703454",
+          "1542567053708230759",
+          "1542567036054675567",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      },
+      "dossier": {
+        "description": "Consulter les profils et historiques de sanctions des autres membres.",
+        "roles": [
+          "1542836944457703454",
+          "1542567053708230759",
+          "1542567036054675567",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      },
+      "activite": {
+        "description": "Ajouter ou retirer des points et des heures d’activité aux membres, avec un motif journalisé.",
+        "roles": [
+          "1542836944457703454",
+          "1542567053708230759",
+          "1542567036054675567",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      },
+      "sanctions": {
+        "description": "Ajouter une sanction ou révoquer une sanction existante pour un membre.",
+        "roles": [
+          "1542836944457703454",
+          "1542567053708230759",
+          "1542567036054675567",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      },
+      "admin": {
+        "description": "Créer, modifier ou supprimer les profils, identités, branches, divisions, rangs et statuts du personnel.",
+        "roles": [
+          "1542836944457703454",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      },
+      "promotion": {
+        "description": "Promouvoir ou rétrograder un membre du personnel.",
+        "roles": [
+          "1542836944457703454",
+          "1542567053708230759",
+          "1542567036054675567",
+          "1523457212293451948",
+          "1523457385102839948"
+        ]
+      }
+    }
+  },
+  "rapports": {
+    "description": "Création, consultation et récapitulatifs des rapports.",
+    "permissions": {
+      "creer": {
+        "description": "Ouvrir et envoyer un rapport depuis une commande ou un panneau.",
+        "roles": [
+          "1545770783387684924"
+        ]
+      },
+      "panel": {
+        "description": "Publier le panneau de création des rapports.",
+        "roles": [
+          "1542836944457703454"
+        ]
+      },
+      "suivi": {
+        "description": "Marquer les rapports comme lus ou pris en compte.",
+        "roles": [
+          "1542567004362379347",
+          "1542567021055836271",
+          "1542567036054675567",
+          "1542567053708230759",
+          "1542836944457703454"
+        ]
+      },
+      "recapitulatif": {
+        "description": "Générer un récapitulatif des rapports publiés sur une période.",
+        "roles": [
+          "1542567004362379347",
+          "1542567021055836271",
+          "1542567036054675567",
+          "1542567053708230759",
+          "1542836944457703454"
+        ]
+      }
+    }
+  },
+  "recrutement": {
+    "description": "Publication du panneau et traitement des candidatures.",
+    "permissions": {
+      "panel": {
+        "description": "Publier le panneau de candidature.",
+        "roles": [
+          "1542836944457703454"
+        ]
+      },
+      "gerer": {
+        "description": "Accepter ou refuser une candidature.",
+        "roles": [
+          "1542836944457703454"
+        ]
+      }
+    }
+  },
+  "urgences": {
+    "description": "Publication du panneau et transmission des appels d’urgence.",
+    "permissions": {
+      "panel": {
+        "description": "Publier le panneau d’appel d’urgence.",
+        "roles": [
+          "1542836944457703454"
+        ]
+      },
+      "appeler": {
+        "description": "Envoyer un appel d’urgence aux divisions concernées.",
+        "roles": [
+          "1550077423511539782"
+        ]
+      }
+    }
+  },
+  "evenements": {
+    "description": "Publication du panneau et création des différents types d’événements.",
+    "permissions": {
+      "panel": {
+        "description": "Publier le panneau de création des événements.",
+        "roles": [],
+        "allowDiscordAdministrator": true
+      },
+      "test-anomalie": {
+        "description": "Créer un événement de test d’anomalie.",
+        "roles": [
+          "1552408240900407358"
+        ],
+        "allowDiscordAdministrator": true
+      },
+      "escorte-vip": {
+        "description": "Créer une demande d’escorte VIP.",
+        "roles": [
+          "1552408270147289178"
+        ],
+        "allowDiscordAdministrator": true
+      },
+      "entrainement": {
+        "description": "Créer un événement d’entraînement.",
+        "roles": [
+          "1552408405774176396"
+        ],
+        "allowDiscordAdministrator": true
+      },
+      "selection": {
+        "description": "Créer un événement de sélection.",
+        "roles": [
+          "1552408448719913103"
+        ],
+        "allowDiscordAdministrator": true
+      }
+    }
+  }
+}

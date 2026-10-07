@@ -287,7 +287,7 @@ class Form {
 		return null;
 	}
 
-	async send(target, { onConfirm, onCancel, ephemeral = false, followUp = false } = {}) {
+	async send(target, { onConfirm, onCancel, canSubmit, ephemeral = false, followUp = false } = {}) {
 		const pages = this._buildPages();
 		const state = {
 			values: Object.fromEntries(this.fields.filter((field) => field.type === 'boolean' && field.default !== undefined).map((field) => [field.id, Boolean(field.default)])),
@@ -362,6 +362,15 @@ class Form {
 					}
 
 					if (action === 'confirm') {
+						if (canSubmit && !await canSubmit(i)) {
+							return i.reply({
+								embeds: [new EmbedBuilder()
+									.setColor(0xed4245)
+									.setTitle('Accès refusé')
+									.setDescription('Vous ne possédez plus les rôles requis pour envoyer ce formulaire.')],
+								flags: MessageFlags.Ephemeral,
+							});
+						}
 						const missing = this.fields.find((f) => f.required !== false && (state.values[f.id] == null || String(state.values[f.id]).trim().length === 0));
 						if (missing) {
 							return i.reply({
@@ -382,7 +391,7 @@ class Form {
 						catch (error) {
 							if (error?.code !== 10008 && error?.status !== 404) throw error;
 						}
-						return onConfirm?.(state.values, this._metadata(state));
+						return await onConfirm?.(state.values, this._metadata(state));
 
 					}
 
@@ -489,7 +498,10 @@ class Form {
 				catch (error) {
 					if (error?.code === 10062 || error?.code === 40060 || error?.status === 404) return;
 					await i.client.log('FORM', 'ERROR', `Erreur dans le formulaire: ${error.stack || error}`);
-					const response = { embeds: [createUserErrorEmbed('le traitement du formulaire')], flags: MessageFlags.Ephemeral };
+					const responseEmbed = error instanceof Error && error.message && !error.code?.startsWith('SQLITE_')
+						? new EmbedBuilder().setColor(0xed4245).setTitle('Opération impossible').setDescription(error.message.slice(0, 4000))
+						: createUserErrorEmbed('le traitement du formulaire');
+					const response = { embeds: [responseEmbed], flags: MessageFlags.Ephemeral };
 					try {
 						if (i.replied || i.deferred) await i.followUp(response);
 						else await i.reply(response);

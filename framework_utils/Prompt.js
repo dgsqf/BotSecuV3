@@ -7,6 +7,7 @@ const {
 } = require('discord.js');
 
 const { createUserErrorEmbed } = require('./Logging.js');
+const Permissions = require('./Permissions.js');
 /**
  * Creates an embed prompt with configurable buttons.
  *
@@ -102,19 +103,8 @@ class Prompt {
 		}
 	}
 
-	hasRequiredRole(button, interaction) {
-		const normalizeRoles = (value) => {
-			if (!value) return [];
-			if (Array.isArray(value)) return value.flatMap((entry) => normalizeRoles(entry));
-			return [value];
-		};
-
-		const requiredRoles = normalizeRoles(button.requiredRoles ?? button.requiredRole);
-
-		if (!requiredRoles.length) return true;
-		if (!interaction?.guild || !interaction.member) return false;
-
-		return requiredRoles.some((roleId) => interaction.member.roles.cache.has(roleId));
+	hasPermission(button, interaction) {
+		return !button.permission || Permissions.hasPermission(interaction, button.permission);
 	}
 
 	async attach(message, options = {}) {
@@ -132,6 +122,19 @@ class Prompt {
 				const button = this.buttons.find(({ customId }) => customId === buttonInteraction.customId);
 				if (!button?.callback) {
 					if (!buttonInteraction.replied && !buttonInteraction.deferred) await buttonInteraction.deferUpdate();
+					return;
+				}
+
+				if (!this.hasPermission(button, buttonInteraction)) {
+					if (!buttonInteraction.replied && !buttonInteraction.deferred) {
+						await buttonInteraction.reply({
+							embeds: [new EmbedBuilder()
+								.setColor(0xed4245)
+								.setTitle('Accès refusé')
+								.setDescription(button.missingRoleMessage || 'Vous ne possédez pas la permission requise pour utiliser ce bouton.')],
+							flags: 64,
+						});
+					}
 					return;
 				}
 
@@ -169,19 +172,6 @@ class Prompt {
 					setTimeout(() => timestamps.delete(buttonInteraction.user.id), cooldownAmount);
 				}
 
-				if (!this.hasRequiredRole(button, buttonInteraction)) {
-					if (!buttonInteraction.replied && !buttonInteraction.deferred) {
-						await buttonInteraction.reply({
-							embeds: [new EmbedBuilder()
-								.setColor(0xed4245)
-								.setTitle('Accès refusé')
-								.setDescription(button.missingRoleMessage || 'Vous n’avez pas le rôle requis pour utiliser ce bouton.')],
-							flags: 64,
-						});
-					}
-					return;
-				}
-
 				await button.callback(buttonInteraction, this);
 			}
 			catch (error) {
@@ -209,7 +199,9 @@ class Prompt {
 			message = await target.send(payload);
 		}
 		else if (isInteraction) {
-			message = await target.reply(payload);
+			message = target.replied || target.deferred
+				? await target.followUp(payload)
+				: await target.reply(payload);
 		}
 		else if (target && typeof target.send === 'function') {
 			message = await target.send(payload);

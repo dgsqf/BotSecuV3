@@ -13,15 +13,13 @@ const {
 const Prompt = require('../../framework_utils/Prompt.js');
 const {
 	salonUrgencePanelChannelId,
-	PermissionAppelSecuRoleId,
 	UrgenceDivisions,
 	UrgenceTypes,
 } = require('../../config.json');
+const Permissions = require('../../framework_utils/Permissions.js');
 
 const OTHER_TYPE_ID = 'autre';
 const OTHER_BUTTON_ID = 'urgence:autre';
-const REQUIRED_PANEL_ROLE_ID = '1542836944457703454';
-
 const getEmergencyFields = (type) => [
 	{ id: 'lieu', label: 'Lieu', placeholder: 'Indiquez le lieu de l urgence', required: true },
 	...(type.fields || []).map((field) => ({ ...field, required: false })),
@@ -99,6 +97,9 @@ const replySuccess = (interaction) => interaction.reply({
 });
 
 const handleModal = async (buttonInteraction, typeId, divisions = null) => {
+	if (!Permissions.hasPermission(buttonInteraction, 'urgences.appeler')) {
+		return buttonInteraction.reply({ content: 'Vous ne possédez pas la permission urgences.appeler.', flags: MessageFlags.Ephemeral });
+	}
 	const type = UrgenceTypes[typeId];
 	const fields = type ? getEmergencyFields(type) : [
 		{ id: 'lieu', label: 'Lieu', placeholder: 'Indiquez le lieu de l urgence', required: true },
@@ -121,6 +122,9 @@ const handleModal = async (buttonInteraction, typeId, divisions = null) => {
 			time: 300000,
 		});
 		const values = readModalValues(modalInteraction, fields);
+		if (!Permissions.hasPermission(modalInteraction, 'urgences.appeler')) {
+			return modalInteraction.reply({ content: 'Vous ne possédez plus la permission urgences.appeler.', flags: MessageFlags.Ephemeral });
+		}
 		await sendEmergency(modalInteraction, type?.label || 'Autre urgence', divisions || type.divisions, values);
 		await replySuccess(modalInteraction);
 	}
@@ -165,6 +169,9 @@ const createOtherSelector = async (buttonInteraction) => {
 		if (interaction.user.id !== buttonInteraction.user.id) {
 			return interaction.reply({ content: 'Ce sélecteur appartient à un autre utilisateur.', flags: MessageFlags.Ephemeral });
 		}
+		if (!Permissions.hasPermission(interaction, 'urgences.appeler')) {
+			return interaction.reply({ content: 'Vous ne possédez plus la permission urgences.appeler.', flags: MessageFlags.Ephemeral });
+		}
 		const divisionPrefix = `urgence:autre:division:${selectorId}:`;
 		const validateId = `urgence:autre:valider:${selectorId}`;
 		if (interaction.customId.startsWith(divisionPrefix)) {
@@ -185,8 +192,8 @@ const createOtherSelector = async (buttonInteraction) => {
 	});
 };
 
-const hasPermission = (interaction) => interaction.member.roles.cache.has(PermissionAppelSecuRoleId);
-const canPublishPanel = (interaction) => Boolean(interaction.member?.roles?.cache?.has(REQUIRED_PANEL_ROLE_ID));
+const hasPermission = (interaction) => Permissions.hasPermission(interaction, 'urgences.appeler');
+const canPublishPanel = (interaction) => Permissions.hasPermission(interaction, 'urgences.panel');
 
 const createUrgencePanel = () => new Prompt({
 	title: '🚨・Appel d\'urgence',
@@ -198,6 +205,7 @@ const createUrgencePanel = () => new Prompt({
 			customId: `urgence:${typeId}`,
 			label: type.label,
 			style: ButtonStyle.Primary,
+			permission: 'urgences.appeler',
 			cooldown: 600,
 			callback: async (buttonInteraction) => {
 				if (!hasPermission(buttonInteraction)) return buttonInteraction.reply({ content: 'Vous n’avez pas la permission d’utiliser cette fonction.', flags: MessageFlags.Ephemeral });
@@ -208,6 +216,7 @@ const createUrgencePanel = () => new Prompt({
 			customId: OTHER_BUTTON_ID,
 			label: 'Autre',
 			style: ButtonStyle.Secondary,
+			permission: 'urgences.appeler',
 			cooldown: 600,
 			callback: async (buttonInteraction) => {
 				if (!hasPermission(buttonInteraction)) return buttonInteraction.reply({ content: 'Vous n’avez pas la permission d’utiliser cette fonction.', flags: MessageFlags.Ephemeral });

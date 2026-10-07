@@ -6,6 +6,7 @@ const {
 const zlib = require('node:zlib');
 const Form = require('./Form.js');
 const config = require('../config.json');
+const Permissions = require('./Permissions.js');
 
 const EVENT_FOOTER_PREFIX = 'event:v1:';
 const PRESENT_EMOJI = '✅';
@@ -27,15 +28,10 @@ const getAnnouncementChannelId = (typeId) => ({
 	selection: config.selectionChannelId,
 }[typeId]);
 
-const hasEventPermission = (interaction, type) => {
-	if (interaction.member?.permissions?.has?.('Administrator')) return true;
-	const roleIds = type.creationRoleIds?.length ? type.creationRoleIds : config.eventCreationRoleIds || [];
-	if (!roleIds.length) return false;
-	return roleIds.some((roleId) => interaction.member?.roles?.cache?.has(roleId));
-};
+const hasEventPermission = (interaction, typeId) => Permissions.hasPermission(interaction, `evenements.${typeId}`);
 
 const getAvailableTypes = (interaction) => Object.entries(getTypes())
-	.filter(([, type]) => hasEventPermission(interaction, type));
+	.filter(([typeId]) => hasEventPermission(interaction, typeId));
 
 const dateToTimestamp = (value) => {
 	if (!value || !Number.isInteger(value.year) || !Number.isInteger(value.month) || !Number.isInteger(value.day)) return null;
@@ -272,6 +268,7 @@ module.exports = {
 	PRESENT_EMOJI,
 	STATE_LABELS,
 	getType,
+	hasEventPermission,
 	getAvailableTypes,
 	buildForm,
 	buildEmbed,

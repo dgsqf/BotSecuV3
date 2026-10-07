@@ -13,6 +13,7 @@ const {
 const { time, TimestampStyles, userMention } = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
 const Prompt = require('../../framework_utils/Prompt.js');
+const Permissions = require('../../framework_utils/Permissions.js');
 const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId } = require('../../config.json');
 
 const getUserReportThread = async (forumChannel, username) => {
@@ -108,6 +109,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 				customId: 'recruitment:accept',
 				label: 'Accepter',
 				style: ButtonStyle.Success,
+				permission: 'recrutement.gerer',
 				callback: async (buttonInteraction) => {
 					await buttonInteraction.deferUpdate();
 					const notified = false;
@@ -193,6 +195,7 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 				customId: 'recruitment:reject',
 				label: 'Refuser',
 				style: ButtonStyle.Danger,
+				permission: 'recrutement.gerer',
 				callback: async (buttonInteraction) => {
 					const rejectionModalId = `recruitment-rejection-${meta.user_id}-${Date.now()}`;
 					const modal = new ModalBuilder().setCustomId(rejectionModalId).setTitle('Motif du refus');
@@ -215,6 +218,9 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						return;
 					}
 
+					if (!Permissions.hasPermission(modalSubmit, 'recrutement.gerer')) {
+						return modalSubmit.reply({ content: 'Vous ne possédez plus la permission recrutement.gerer.', flags: MessageFlags.Ephemeral });
+					}
 					const reason = modalSubmit.fields.getTextInputValue('reason').trim();
 					await modalSubmit.deferUpdate();
 					let notified = false;

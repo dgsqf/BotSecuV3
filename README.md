@@ -44,8 +44,6 @@ Activez le Mode développeur Discord. Copiez toujours les IDs directement depuis
 
 | Clé                        | Valeur attendue                                                                                                                       | Où récupérer l’ID                                                                                               |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `personnelStaffRoleIds`    | Liste des IDs de rôles autorisés pour les sanctions, promotions/rétrogradations et corrections manuelles d’activité                   | Paramètres du serveur → Rôles → clic droit sur chaque rôle → Copier l’identifiant du rôle                       |
-| `personnelAdminRoleIds`    | Liste des IDs de rôles autorisés à créer/supprimer des profils, modifier les informations/divisions et définir manuellement les rangs | Même méthode; choisissez les rôles d’administration du personnel                                                |
 | `personnelBranchRoleIds`   | Objet branche → liste d’IDs de rôles à synchroniser (EIT, BG, COMMANDEMENT)                                                           | Une ou plusieurs listes; les rôles de branche restent séparés de ceux de division                               |
 | `personnelDivisionRoleIds` | Objet division → liste d’IDs de rôles à synchroniser (ULB, URR, UPR, UMS)                                                             | Configurez chaque division indépendamment, même si les rôles portent le même nom                                |
 | `personnelIraRoleIds`      | Objet IRA `1` à `7` → liste d’IDs de rôles pour chaque niveau                                                                         | Copiez les IDs des rôles IRA; l’ancien niveau est retiré et le nouveau ajouté quand l’IRA change                |
@@ -56,17 +54,40 @@ Activez le Mode développeur Discord. Copiez toujours les IDs directement depuis
 | `personnelRankLimits`      | Plafonds facultatifs par rang, sous `branches` ou `divisions`                                                                         | Exemple : `"branches": { "DIRECTION": { "directeur": 1 } }`; un rang absent de la configuration est sans limite |
 | `promotionDirectMessages`  | `true` pour envoyer un MP aux membres promus, sinon `false`                                                                           | Réglage booléen, pas un ID                                                                                      |
 
-Les valeurs `REMPLACER_PAR_...` sont des rappels, pas des IDs valides. Remplacez-les avant d’utiliser ces commandes. Les rôles staff/admin vides ou invalides refusent l’accès. `/promotion vague` reste désactivée tant que `promotionChannelId` n’est pas un ID Discord numérique valide. Un administrateur doit aussi être ajouté à `personnelStaffRoleIds` s’il doit utiliser les commandes staff : les deux listes sont indépendantes.
+Les valeurs `REMPLACER_PAR_...` sont des rappels, pas des IDs valides. Remplacez-les avant d’utiliser ces commandes. `/promotion vague` reste désactivée tant que `promotionChannelId` n’est pas un ID Discord numérique valide.
+
+### 5. Configurer les permissions
+
+Les autorisations du bot sont centralisées dans [`permission.json`](./permission.json), séparément des paramètres fonctionnels de `config.json`. Chaque permission est nommée `namespace.nom` (par exemple `personnel.promotion`) et décrit la fonction concernée. Une permission accorde l’accès si le membre possède **au moins un** des rôles listés.
+
+Après le démarrage du bot, un administrateur Discord peut exécuter `/permissions`. Le panneau permet de choisir un namespace, puis une permission, et de gérer ses rôles avec le sélecteur Discord. Les sélections peuvent être ajoutées ou retirées par lots de 25 rôles; **Enregistrer** applique les changements, tandis que **Annuler** ou **Retour** les abandonne. Une liste vide refuse l’accès, sauf pour les permissions dont la description indique explicitement un accès administrateur Discord.
+
+Les permissions du personnel sont séparées pour choisir précisément qui peut effectuer chaque action :
+
+| Permission | Actions autorisées |
+| --- | --- |
+| `personnel.dashboard` | Ouvrir le dashboard sans profil personnel. Les membres disposant d’un profil peuvent toujours ouvrir leur dossier et consulter leurs propres données. |
+| `personnel.dossier` | Rechercher et consulter les profils et historiques de sanctions des autres membres. |
+| `personnel.activite` | Ajouter ou retirer des points et des heures d’activité aux membres; chaque correction exige un motif et est journalisée. |
+| `personnel.sanctions` | Ajouter une sanction et révoquer une sanction existante. La consultation des dossiers d’autres membres reste contrôlée par `personnel.dossier`. |
+| `personnel.promotion` | Préparer, confirmer et publier les promotions en vague, ainsi que rétrograder un membre. |
+| `personnel.admin` | Créer, modifier ou supprimer un profil; modifier son identité, son statut, sa branche, sa division et son rang. |
+
+Les permissions indépendantes doivent être attribuées séparément si une équipe a besoin de plusieurs fonctions. Les rôles actuellement en place ont été recopiés dans chaque capacité concernée pour préserver les accès existants.
+
+Le registre contient aussi les rôles des rapports, du recrutement, des urgences et des événements. Après migration, modifiez leurs autorisations depuis `/permissions`, et non depuis d’anciens champs de rôles dans `config.json`.
+
+La commande `/rapport-recapitulatif` est réservée aux rôles autorisés par `rapports.recapitulatif`. Elle génère en pièce jointe un fichier Markdown contenant les rapports publiés au cours des 7 derniers jours, du dernier mois ou de la dernière année, classés par date puis par type. Le fichier inclut aussi une table reliant le pseudonyme Discord de chaque auteur à son nom RP enregistré.
 
 Chaque valeur de `personnelBranchRoleIds`, `personnelDivisionRoleIds`, `personnelIraRoleIds`, `personnelRankRoleIds.branches` et `personnelRankRoleIds.divisions` est un tableau, même s’il ne contient qu’un rôle. Ajoutez plusieurs IDs dans le même tableau si une branche, une division, un niveau IRA ou un rang doit donner plusieurs rôles. Exemple : `"ULB": ["ID_ROLE_ULB_1", "ID_ROLE_ULB_2"]`. Les rôles de branche, division, rang et IRA sont synchronisés à la création/suppression d’un profil et lors d’un changement de branche, division, rang, promotion ou rétrogradation. Si l’API Discord refuse une modification de rôle, le profil reste enregistré et l’échec est logué.
 
-Les autres IDs déjà présents dans `config.json` correspondent aux salons, rôles et tags utilisés par les fonctionnalités existantes. Ne les modifiez que si vous souhaitez reconfigurer ces fonctionnalités; ils se copient de la même manière.
+Les autres IDs déjà présents dans `config.json` correspondent aux salons et tags utilisés par les fonctionnalités existantes. Ne les modifiez que si vous souhaitez reconfigurer ces fonctionnalités; ils se copient de la même manière.
 
-Le modèle de profils couvre EIT, BG, COMMANDEMENT, DIRECTION et COMMISSION, ainsi que les divisions BG ULB, URR, UPR et UMS. Direction et Commission sont des branches indépendantes : elles ne peuvent pas être affectées à une division BG. Leurs échelles sont respectivement Directeur adjoint → Directeur (IRA 8) et Officier de commission (IRA 6) → Commissaire du conseil de sûreté (IRA 7). « Représentant de département » concerne les autres départements et n’est pas un rang de la sécurité. Les rôles de rang de Direction et Commission restent manuels et sont déclarés dans `personnelManualRoleGroups`; le bot gère les profils et rangs, mais n’attribue ni ne retire ces rôles. `/personnel profil` affiche les rôles correspondants effectivement détenus. Les rôles Directeur et Directeur adjoint restent autorisés à utiliser les fonctions admin via `personnelAdminRoleIds`.
+Le modèle de profils couvre EIT, BG, COMMANDEMENT, DIRECTION et COMMISSION, ainsi que les divisions BG ULB, URR, UPR et UMS. Direction et Commission sont des branches indépendantes : elles ne peuvent pas être affectées à une division BG. Leurs échelles sont respectivement Directeur adjoint → Directeur (IRA 8) et Officier de commission (IRA 6) → Commissaire du conseil de sûreté (IRA 7). « Représentant de département » concerne les autres départements et n’est pas un rang de la sécurité. Les rôles de rang de Direction et Commission restent manuels et sont déclarés dans `personnelManualRoleGroups`; le bot gère les profils et rangs, mais n’attribue ni ne retire ces rôles. `/personnel profil` affiche les rôles correspondants effectivement détenus. Configurez les rôles Directeur et Directeur adjoint dans `personnel.admin` avec `/permissions`.
 
 Les plafonds de `personnelRankLimits` sont appliqués aux créations, réactivations, changements de rang/branche/division, rétrogradations et promotions. Seuls les profils actifs occupent une place. Les postes du Commandement, les capitaines, les majors et les lieutenants ont chacun une limite de 1 par échelle; les postes de Direction et de Commission déjà configurés sont également plafonnés à 1. Les limites des divisions sont indépendantes entre ULB, URR, UPR et UMS. Les autres rangs restent illimités tant qu’aucun plafond n’est ajouté. `/hierarchie` affiche une branche ou division par page et indique l’effectif courant des rangs limités.
 
-### 5. Déployer les commandes et lancer
+### 6. Déployer les commandes et lancer
 
 Déployez les commandes sur le serveur indiqué par `GUILD_ID`, puis démarrez le bot :
 

@@ -1,7 +1,6 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const {
 	rapportSuiviChannelId,
-	rapportSuiviRoleIds = [],
 	rapportLuEmoji = '👀',
 	rapportPromotionEmoji = '✅',
 } = require('../config.json');
@@ -11,6 +10,7 @@ const REPORT_COLORS = {
 	read: 0xf39c12,
 	promotion: 0x57f287,
 };
+const Permissions = require('../framework_utils/Permissions.js');
 
 const normalizeEmoji = (emoji) => String(emoji ?? '').replace(/^<a?:[^:]+:(\d+)>$/, '$1');
 const isConfiguredEmoji = (reaction, configuredEmoji) => {
@@ -18,7 +18,7 @@ const isConfiguredEmoji = (reaction, configuredEmoji) => {
 	return reaction.emoji.name === configured || reaction.emoji.id === configured || reaction.emoji.identifier === configured;
 };
 
-const hasOfficerRole = (member) => rapportSuiviRoleIds.some((roleId) => member?.roles.cache.has(roleId));
+const hasOfficerRole = (member) => Permissions.hasPermission({ member }, 'rapports.suivi');
 const getNotificationMetadata = (message) => {
 	const footer = message.embeds?.[0]?.footer?.text || '';
 	if (!footer.startsWith('rapport:')) return null;

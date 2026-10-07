@@ -5,7 +5,6 @@
     "rapportForumChannelId": "1544014648905572483",
     "rapportPanelChannelId": "",
     "rapportSuiviChannelId": "",
-    "rapportSuiviRoleIds": [],
     "rapportLuEmoji": "👀",
     "rapportPromotionEmoji": "✅",
     "rapportReactionMessageId": "",
@@ -31,6 +30,5 @@
         "UMS": "",
         "EIT": ""
     },
-    "eventCreationRoleIds": [],
     "EventTypes": {}
 }

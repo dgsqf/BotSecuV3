@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const config = require('../config.json');
+const Permissions = require('../framework_utils/Permissions.js');
 const { MODULES, commandHelp, getCommandEntries, getAccess, formatFields } = require('../framework_utils/HelpCatalog.js');
+const { renderDashboard, executeDashboard } = require('../framework_utils/PersonnelDashboardSession.js');
 const helpCommand = require('../commands/help/help.js');
 
 const commandsPath = path.join(__dirname, '..', 'commands');
@@ -15,7 +16,7 @@ const loadedCommands = fs.readdirSync(commandsPath, { withFileTypes: true })
 	.filter((command) => command?.data?.name && typeof command.execute === 'function');
 
 test('help catalog covers every registered command and subcommand', () => {
-	assert.equal(MODULES.length, 5);
+	assert.equal(MODULES.length, 6);
 	assert.ok(MODULES.every((module) => module.emoji));
 	assert.deepEqual(Object.keys(commandHelp).sort(), loadedCommands.filter((command) => command.data.name !== 'help').map((command) => command.data.name).sort());
 	for (const command of loadedCommands.filter((item) => item.data.name !== 'help')) {
@@ -78,26 +79,62 @@ test('help command is registered and its home panel has Discord-compatible embed
 
 test('help exposes optional form fields and current role-based access', () => {
 	const personnel = loadedCommands.find((command) => command.data.name === 'personnel');
-	const profile = getCommandEntries(personnel).find((entry) => entry.key === 'profil');
-	const create = getCommandEntries(personnel).find((entry) => entry.key === 'creer');
-	assert.equal(getAccess({}, profile).allowed, true);
-	assert.equal(getAccess({ member: { roles: { cache: new Map() } } }, create).allowed, false);
-	assert.match(formatFields(create.fields), /Prénom/);
-	assert.match(formatFields(create.fields), /Division \(BG uniquement\).*facultatif/);
+	const characters = getCommandEntries(personnel).find((entry) => entry.key === 'characters');
+	const hierarchy = getCommandEntries(personnel).find((entry) => entry.key === 'hierarchy');
+	assert.equal(getAccess({ member: { roles: { cache: new Map() } } }, characters).allowed, false);
+	assert.equal(getAccess({ member: { roles: { cache: new Set(Permissions.getRoleIds('personnel.admin')) } } }, characters).allowed, true);
+	assert.equal(getAccess({ member: { roles: { cache: new Set(Permissions.getRoleIds('personnel.promotion')) } } }, hierarchy).allowed, true);
 });
 
-test('help catalog records slash option and dynamic form details', () => {
-	const promotion = loadedCommands.find((command) => command.data.name === 'promotion');
-	assert.equal(promotion.data.toJSON().options[0].options[0].name, 'note');
+test('help catalog documents all dashboard actions and dynamic form details', () => {
+	const personnel = loadedCommands.find((command) => command.data.name === 'personnel');
+	const entries = getCommandEntries(personnel);
+	assert.equal(personnel.data.toJSON().options.length, 0);
+	assert.deepEqual(entries.map(({ key }) => key).sort(), ['activity', 'characters', 'hierarchy', 'sanctions']);
+	assert.match(entries.find((entry) => entry.key === 'hierarchy').description, /vagues de promotions/);
+	assert.match(entries.find((entry) => entry.key === 'sanctions').description, /révoquer/);
 	const recruitment = getCommandEntries(loadedCommands.find((command) => command.data.name === 'recrutement'))[0];
 	assert.match(formatFields(recruitment.fields), /2 questions sont sélectionnées au hasard parmi 7/);
 	assert.match(formatFields(recruitment.fields), /3 questions sont sélectionnées au hasard parmi 7/);
 });
 
+test('personnel dashboard refuses unauthorized users and filters actions by role', async () => {
+	const personnelCommand = loadedCommands.find((command) => command.data.name === 'personnel');
+	assert.equal(personnelCommand.data.name, 'personnel');
+	assert.deepEqual(getCommandEntries(personnelCommand).map(({ key }) => key).sort(), ['activity', 'characters', 'hierarchy', 'sanctions']);
+	assert.deepEqual(loadedCommands.filter(({ data }) => ['activite', 'hierarchie', 'promotion', 'retrogradation', 'sanction'].includes(data.name)), []);
+	assert.equal(personnelCommand.canExecute({ member: { roles: { cache: new Set() } } }), false);
+	assert.equal(personnelCommand.canExecute({ member: { roles: { cache: new Set(Permissions.getRoleIds('personnel.dashboard')) } } }), true);
+
+	let deniedPayload;
+	await executeDashboard({
+		client: { log: async () => null },
+		member: { roles: { cache: new Set() } },
+		user: { id: 'unauthorized', tag: 'unauthorized' },
+		reply: async (payload) => { deniedPayload = payload; },
+	});
+	assert.equal(deniedPayload.embeds[0].data.title, 'Base de données indisponible');
+	assert.equal(deniedPayload.components, undefined);
+
+	const adminOnly = { member: { roles: { cache: new Set(['1523457212293451948']) } }, user: { tag: 'admin' } };
+	const renderState = (interaction, view, hasOwnProfile = false) => ({ interaction, userTag: 'test', view, page: view, backPage: 'home', hasOwnProfile, activityType: 'points', activityPeriod: 'all', activityPage: 1, activityPages: 1, historyPage: 1, historyPages: 1, promotionIds: [], promotionLabels: [], scaleIndex: 0 });
+	const adminOptions = renderDashboard(renderState(adminOnly, 'characters')).components.flatMap((row) => row.components).map((component) => component.data.custom_id);
+	assert.ok(adminOptions.includes('personnel:create-profile'));
+	assert.ok(adminOptions.includes('personnel:edit-profile'));
+	assert.ok(!adminOptions.includes('personnel:sanction-add'));
+
+	const staffOnly = { member: { roles: { cache: new Set(['1542567053708230759']) } }, user: { tag: 'staff' } };
+	const staffOptions = renderDashboard(renderState(staffOnly, 'sanctions')).components.flatMap((row) => row.components).map((component) => component.data.custom_id);
+	assert.ok(staffOptions.includes('personnel:sanction-add'));
+	const staffCharacterOptions = renderDashboard(renderState(staffOnly, 'characters')).components.flatMap((row) => row.components).map((component) => component.data.custom_id);
+	assert.ok(staffCharacterOptions.includes('personnel:select-profile'));
+	assert.ok(!staffCharacterOptions.includes('personnel:create-profile'));
+});
+
 test('help evaluates event types and command-specific role requirements', () => {
 	const eventCommand = loadedCommands.find((command) => command.data.name === 'evenement');
 	const eventEntry = getCommandEntries(eventCommand)[0];
-	const eventRole = config.EventTypes[eventEntry.key].creationRoleIds[0];
+	const eventRole = Permissions.getRoleIds(`evenements.${eventEntry.key}`)[0];
 	const eventMember = { permissions: { has: () => false }, roles: { cache: new Set([eventRole]) } };
 	assert.equal(getAccess({ member: eventMember }, eventEntry).allowed, true);
 	assert.equal(getAccess({ member: { permissions: { has: () => false }, roles: { cache: new Set() } } }, eventEntry).allowed, false);
@@ -121,7 +158,7 @@ test('help evaluates event types and command-specific role requirements', () => 
 
 	const emergency = loadedCommands.find((command) => command.data.name === 'urgence-panel');
 	const emergencyEntry = getCommandEntries(emergency)[0];
-	const emergencyAccess = roleInteraction(config.PermissionAppelSecuRoleId);
+	const emergencyAccess = roleInteraction(Permissions.getRoleIds('urgences.appeler')[0]);
 	assert.equal(getAccess(emergencyAccess, emergencyEntry).allowed, false);
 	assert.equal(emergencyEntry.additionalAccess[0].access(emergencyAccess).allowed, true);
 });

@@ -52,11 +52,12 @@ const openEventSelector = async (interaction) => {
 		collector.stop('selected');
 		const typeId = component.values[0];
 		const type = Events.getType(typeId);
-		if (!type || !Events.getAvailableTypes(interaction).some(([id]) => id === typeId)) return component.update({ content: 'Accès refusé.', embeds: [], components: [] });
+		if (!type || !Events.getAvailableTypes(component).some(([id]) => id === typeId)) return component.update({ content: 'Accès refusé.', embeds: [], components: [] });
 		await component.update({ content: `Type sélectionné : **${type.label}**`, embeds: [], components: [] });
 		const form = Events.buildForm(typeId);
 		await form.send(interaction, {
 			ephemeral: true,
+			canSubmit: (submission) => Events.hasEventPermission(submission, typeId),
 			onConfirm: async (values, meta) => {
 				try {
 					await Events.publishEvent(interaction, typeId, values, meta);

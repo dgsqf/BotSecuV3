@@ -41,6 +41,11 @@ const getProfile = async (discordId) => {
 	return mapMember(getDatabase().prepare('SELECT * FROM members WHERE discord_id = ?').get(discordId));
 };
 
+const hasProfile = (discordId) => {
+	if (typeof discordId !== 'string' || !discordId.trim()) return false;
+	return Boolean(getDatabase().prepare('SELECT 1 FROM members WHERE discord_id = ?').get(discordId));
+};
+
 const requireText = (value, label, maxLength = 100) => {
 	if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} est obligatoire.`);
 	if (value.trim().length > maxLength) throw new Error(`${label} ne peut pas dépasser ${maxLength} caractères.`);
@@ -517,6 +522,7 @@ const demoteMember = async (discordId) => {
 module.exports = {
 	setDatabase,
 	getProfile,
+	hasProfile,
 	getRankLimit,
 	getRankCounts,
 	createProfile,

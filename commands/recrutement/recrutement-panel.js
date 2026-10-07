@@ -7,8 +7,8 @@ const {
 const Prompt = require('../../framework_utils/Prompt.js');
 const recrutement = require('./recrutement.js');
 const { recruitmentPanelChannelId } = require('../../config.json');
-const REQUIRED_ROLE_ID = '1542836944457703454';
-const canExecute = (interaction) => Boolean(interaction.member?.roles?.cache?.has(REQUIRED_ROLE_ID));
+const Permissions = require('../../framework_utils/Permissions.js');
+const canExecute = (interaction) => Permissions.hasPermission(interaction, 'recrutement.panel');
 
 const createRecruitmentPanel = () => new Prompt({
 	title: 'Recrutement - Département de la sécurité',
@@ -50,7 +50,7 @@ module.exports = {
 			denied_access_embed = new EmbedBuilder()
 				.setColor(0xFF0000)
 				.setTitle('Accès refusé')
-				.setDescription('Vous devez posséder le rôle "IRA - 8 : Direction" pour utiliser cette commande.');
+				.setDescription('Vous ne possédez pas la permission recrutement.panel.');
 			// Authorization Failure
 			await interaction.reply({
 				embeds: [denied_access_embed],

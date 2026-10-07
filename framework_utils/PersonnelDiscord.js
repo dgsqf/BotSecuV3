@@ -1,12 +1,9 @@
 const { EmbedBuilder, MessageFlags } = require('discord.js');
 const config = require('../config.json');
 const Form = require('./Form.js');
+const Permissions = require('./Permissions.js');
 const { getLadder } = require('../data/hierarchy.js');
 
-const ROLE_GROUPS = {
-	staff: config.personnelStaffRoleIds || [],
-	admin: config.personnelAdminRoleIds || [],
-};
 const isDiscordId = (value) => typeof value === 'string' && /^\d{17,20}$/.test(value);
 const normalizeRoleIds = (value) => (Array.isArray(value) ? value : [value])
 	.filter(isDiscordId);
@@ -36,8 +33,12 @@ const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextP
 	const previousRoleIds = new Set(getPersonnelRoleIds(previousProfile));
 	const nextRoleIds = new Set(getPersonnelRoleIds(nextProfile));
 	const protectedRoleIds = new Set([
-		...normalizeRoleIds(config.personnelStaffRoleIds),
-		...normalizeRoleIds(config.personnelAdminRoleIds),
+		...Permissions.getRoleIds('personnel.dashboard'),
+		...Permissions.getRoleIds('personnel.dossier'),
+		...Permissions.getRoleIds('personnel.activite'),
+		...Permissions.getRoleIds('personnel.sanctions'),
+		...Permissions.getRoleIds('personnel.admin'),
+		...Permissions.getRoleIds('personnel.promotion'),
 		...Object.values(config.personnelManualRoleGroups || {}).flatMap(normalizeRoleIds),
 	]);
 	const rolesToRemove = [...previousRoleIds].filter((roleId) => !nextRoleIds.has(roleId) && !protectedRoleIds.has(roleId));
@@ -56,9 +57,7 @@ const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextP
 };
 
 const hasPersonnelPermission = (interaction, group) => {
-	const roleIds = ROLE_GROUPS[group] || [];
-	const roles = interaction.member?.roles;
-	return roleIds.some((roleId) => roles?.cache?.has(roleId) || (Array.isArray(roles) && roles.includes(roleId)));
+	return Permissions.hasPermission(interaction, `personnel.${group}`);
 };
 
 const reply = async (interaction, embed, extra = {}) => {

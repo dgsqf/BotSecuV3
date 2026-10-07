@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder, time, TimestampStyles } = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
 const Personnel = require('../../framework_utils/Personnel.js');
+const Permissions = require('../../framework_utils/Permissions.js');
 const {
 	rapportForumChannelId,
 	rapportSuiviChannelId,
@@ -8,8 +9,7 @@ const {
 	rapportPromotionEmoji = '✅',
 	activityPointsPerReport = 0,
 } = require('../../config.json');
-const REQUIRED_ROLE_ID = '1545770783387684924';
-const hasReportRole = (member) => Boolean(member?.roles?.cache?.has(REQUIRED_ROLE_ID));
+const hasReportPermission = (interaction) => Permissions.hasPermission(interaction, 'rapports.creer');
 
 const getUserThread = async (forumChannel, username) => {
 	const cacheThreads = forumChannel?.threads?.cache ?? [];
@@ -154,18 +154,15 @@ const buildReportForm = (type) => {
 const startReport = async (interaction, reportGuild = interaction.guild) => {
 	const member = interaction.member || await reportGuild?.members.fetch(interaction.user.id).catch(() => null);
 
-	// Step 1: Check if the user (interaction.member) has the required role
-	if (!hasReportRole(member)) {
-		denied_access_embed = new EmbedBuilder()
+	if (!hasReportPermission({ member })) {
+		const denied_access_embed = new EmbedBuilder()
 			.setColor(0xFF0000)
 			.setTitle('Accès refusé')
-			.setDescription('Vous devez posséder le rôle Sécurité pour utiliser cette commande.');
-		// Authorization Failure
-		await interaction.reply({
+			.setDescription('Vous ne possédez pas la permission rapports.creer.');
+		return interaction.reply({
 			embeds: [denied_access_embed],
 			flags: MessageFlags.Ephemeral,
 		});
-		return;
 	}
 
 	const forumChannelId = process.env.RAPPORT_FORUM_CHANNEL_ID || rapportForumChannelId;
@@ -209,6 +206,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 
 	await typeForm.send(interaction, {
 		ephemeral: true,
+		canSubmit: hasReportPermission,
 		onConfirm: async (typeData, meta) => {
 			const reportType = typeData.rapport_type;
 			if (!reportType) {
@@ -224,6 +222,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 			const detailedForm = buildReportForm(reportType);
 			await detailedForm.send(interaction, {
 				ephemeral: true,
+				canSubmit: hasReportPermission,
 				onConfirm: async (reportData, formMeta) => {
 					const userThreadName = meta.username;
 					let thread = await getUserThread(forumChannel, userThreadName);
@@ -318,7 +317,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('rapport')
 		.setDescription('Crée un nouveau rapport'),
-	canExecute: (interaction) => hasReportRole(interaction.member),
+	canExecute: hasReportPermission,
 	execute: startReport,
 	startReport,
 	parseServiceDurationHours,

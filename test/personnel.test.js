@@ -7,6 +7,8 @@ const { openDatabase } = require('../framework_utils/Database.js');
 const personnel = require('../framework_utils/Personnel.js');
 const { getLadder } = require('../data/hierarchy.js');
 const config = require('../config.json');
+const personnelCommand = require('../commands/personnel/personnel.js');
+const { renderDashboard, executeDashboard } = require('../framework_utils/PersonnelDashboardSession.js');
 
 let database;
 let temporaryDirectory;
@@ -29,6 +31,83 @@ const addProfile = (discordId, branch, rankId, division = null) => personnel.cre
 	branch,
 	rankId,
 	division,
+});
+
+test('a database profile grants private self-info access without staff roles', async () => {
+	assert.equal(personnel.hasProfile('self-info-user'), false);
+	await addProfile('self-info-user', 'EIT', 'recrue-eit');
+	assert.equal(personnel.hasProfile('self-info-user'), true);
+	assert.equal(personnelCommand.canExecute({ user: { id: 'self-info-user' }, member: { roles: { cache: new Set() } } }), true);
+
+	const interaction = {
+		user: { id: 'self-info-user', tag: 'self-info-user' },
+		member: { roles: { cache: new Set() } },
+	};
+	const dashboardState = { interaction, userTag: interaction.user.tag, view: 'characters', page: 'characters', backPage: 'home', hasOwnProfile: true, activityType: 'points', activityPeriod: 'all', activityPage: 1, activityPages: 1, historyPage: 1, historyPages: 1, promotionIds: [], promotionLabels: [], scaleIndex: 0 };
+	const components = renderDashboard(dashboardState).components.flatMap((row) => row.components);
+	assert.ok(components.some((component) => component.data.custom_id === 'personnel:self-profile'));
+	assert.ok(!components.some((component) => component.data.custom_id === 'personnel:create-profile'));
+	assert.ok(!components.some((component) => component.data.custom_id === 'personnel:delete-profile'));
+});
+
+test('dashboard navigates views and self profile by editing its original response', async () => {
+	await addProfile('dashboard-user', 'EIT', 'recrue-eit');
+	let collect;
+	let replyCount = 0;
+	const edits = [];
+	const message = {
+		createMessageComponentCollector: () => ({
+			on: (event, callback) => { if (event === 'collect') collect = callback; },
+			stop: () => false,
+		}),
+	};
+	const interaction = {
+		user: { id: 'dashboard-user', tag: 'dashboard-user' },
+		member: { roles: { cache: new Set() } },
+		guild: { members: { fetch: async () => null }, roles: { cache: new Map() } },
+		client: { log: async (_module, _severity, logMessage) => { logs.push(logMessage); } },
+		reply: async (payload) => { replyCount++; edits.push(payload); },
+		fetchReply: async () => message,
+		editReply: async (payload) => { edits.push(payload); },
+	};
+	const logs = [];
+	await executeDashboard(interaction);
+	assert.equal(replyCount, 1);
+	assert.ok(edits[0].components.flatMap((componentRow) => componentRow.components).some((component) => component.data.custom_id === 'personnel:view'));
+
+	const viewComponent = {
+		user: interaction.user,
+		member: interaction.member,
+		customId: 'personnel:view',
+		values: ['characters'],
+		deferred: false,
+		deferUpdate: async function() { this.deferred = true; },
+	};
+	await collect(viewComponent);
+	assert.equal(edits.length, 2);
+	assert.equal(edits[1].embeds[0].data.title, '👥 Personnages');
+
+	const profileComponent = {
+		user: interaction.user,
+		member: interaction.member,
+		customId: 'personnel:self-profile',
+		deferred: false,
+		deferUpdate: async function() { this.deferred = true; },
+	};
+	const originalGetProfile = personnel.getProfile;
+	personnel.getProfile = async () => { throw new Error('simulated dashboard failure'); };
+	try {
+		await collect(profileComponent);
+	}
+	finally {
+		personnel.getProfile = originalGetProfile;
+	}
+	assert.equal(profileComponent.deferred, true);
+	assert.equal(replyCount, 1);
+	assert.match(edits.at(-1).embeds[0].data.fields.find((field) => field.name === '⚠️ Opération impossible').value, /simulated dashboard failure/);
+	assert.match(logs[0], /personnel:self-profile/);
+	assert.match(logs[0], /dashboard-user/);
+	assert.match(logs[0], /simulated dashboard failure/);
 });
 
 test('previewPromotion advances EIT and BG members by one rank', async () => {

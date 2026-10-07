@@ -8,8 +8,8 @@ const Prompt = require('../../framework_utils/Prompt.js');
 const rapports = require('./rapports.js');
 const { rapportPanelChannelId } = require('../../config.json');
 
-const PANEL_ROLE_ID = '1542836944457703454';
-const canExecute = (interaction) => Boolean(interaction.member?.roles?.cache?.has(PANEL_ROLE_ID));
+const Permissions = require('../../framework_utils/Permissions.js');
+const canExecute = (interaction) => Permissions.hasPermission(interaction, 'rapports.panel');
 
 const REPORT_PANEL_FIELDS = [
 	{
@@ -45,6 +45,7 @@ const createReportPanel = () => new Prompt({
 			customId: 'rapport:open-form',
 			label: 'Ouvrir un rapport',
 			style: ButtonStyle.Primary,
+			permission: 'rapports.creer',
 			cooldown: 60,
 			callback: (buttonInteraction) => rapports.startReport(buttonInteraction),
 		},
