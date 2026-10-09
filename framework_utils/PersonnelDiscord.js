@@ -29,6 +29,17 @@ const getPersonnelRoleIds = (profile) => {
 	])];
 };
 
+const getPersonnelNickname = (profile) => {
+	if (!profile) return null;
+	const abbreviations = config.personnelNicknameAbbreviations || {};
+	const division = profile.division ? abbreviations.divisions?.[profile.division] || profile.division : null;
+	const branch = abbreviations.branches?.[profile.branch] || profile.branch;
+	const rankId = profile.division ? profile.divisionRankId : profile.branchRankId;
+	const rank = abbreviations.ranks?.[rankId] || getLadder(profile.branch, profile.division).find(({ id }) => id === rankId)?.label || rankId;
+	const prefix = division || branch;
+	return `${prefix}-${rank} ${profile.firstName} ${profile.lastName}`.toLocaleUpperCase('fr').slice(0, 32);
+};
+
 const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextProfile) => {
 	const previousRoleIds = new Set(getPersonnelRoleIds(previousProfile));
 	const nextRoleIds = new Set(getPersonnelRoleIds(nextProfile));
@@ -43,11 +54,13 @@ const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextP
 	]);
 	const rolesToRemove = [...previousRoleIds].filter((roleId) => !nextRoleIds.has(roleId) && !protectedRoleIds.has(roleId));
 	const rolesToAdd = [...nextRoleIds].filter((roleId) => !previousRoleIds.has(roleId));
-	if (!rolesToRemove.length && !rolesToAdd.length) return { ok: true };
+	if (!rolesToRemove.length && !rolesToAdd.length && !nextProfile) return { ok: true };
 	try {
 		const member = await interaction.guild.members.fetch(discordId);
 		if (rolesToRemove.length) await member.roles.remove(rolesToRemove);
 		if (rolesToAdd.length) await member.roles.add(rolesToAdd);
+		const nickname = getPersonnelNickname(nextProfile);
+		if (nickname && member.nickname !== nickname) await member.setNickname(nickname, 'Synchronisation du profil personnel');
 		return { ok: true };
 	}
 	catch (error) {
@@ -166,6 +179,7 @@ module.exports = {
 	formatDuration,
 	isDiscordId,
 	getPersonnelRoleIds,
+	getPersonnelNickname,
 	getManualRoleDisplays,
 	syncPersonnelRoles,
 	runPersonnelForm,

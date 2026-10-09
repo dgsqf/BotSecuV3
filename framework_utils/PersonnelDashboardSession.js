@@ -451,7 +451,7 @@ const goToView = async (state, view) => {
 };
 
 // Toutes les vues et les erreurs rééditent la réponse éphémère d’origine.
-const renderPage = (state) => state.interaction.editReply(renderDashboard(state));
+const renderPage = (state) => (state.responseInteraction || state.interaction).editReply(renderDashboard(state));
 const setNotice = (state, error) => {
 	state.error = true;
 	state.notice = error instanceof Error ? error.message : String(error);

@@ -54,10 +54,10 @@ test('role synchronization removes old division role lists and adds the new divi
 		const interaction = {
 			guild: {
 				members: {
-					fetch: async () => ({ roles: {
-						add: async (roleIds) => { addedRoles = roleIds; },
-						remove: async (roleIds) => { removedRoles = roleIds; },
-					} }),
+				fetch: async () => ({ roles: {
+					add: async (roleIds) => { addedRoles = roleIds; },
+					remove: async (roleIds) => { removedRoles = roleIds; },
+				}, setNickname: async () => null }),
 				},
 			},
 			client: { log: async () => null },
@@ -92,10 +92,10 @@ test('role synchronization swaps IRA roles when a member changes IRA', async () 
 		const interaction = {
 			guild: {
 				members: {
-					fetch: async () => ({ roles: {
-						add: async (roleIds) => { addedRoles = roleIds; },
-						remove: async (roleIds) => { removedRoles = roleIds; },
-					} }),
+				fetch: async () => ({ roles: {
+					add: async (roleIds) => { addedRoles = roleIds; },
+					remove: async (roleIds) => { removedRoles = roleIds; },
+				}, setNickname: async () => null }),
 				},
 			},
 			client: { log: async () => null },
@@ -155,7 +155,7 @@ test('automatic role sync preserves a role configured as manually managed', asyn
 			guild: { members: { fetch: async () => ({ roles: {
 				remove: async (roleIds) => { removedRoles = roleIds; },
 				add: async () => null,
-			} }) } },
+			}, setNickname: async () => null }) } },
 			client: { log: async () => null },
 		};
 		await syncPersonnelRoles(interaction, 'member-id', {

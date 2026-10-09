@@ -33,6 +33,16 @@
         "Direction": ["1523457212293451948", "1523457385102839948"],
         "Commission de sûreté": ["1542558372807708813", "1542558420471910490"]
     },
+    "personnelNicknameAbbreviations": {
+        "branches": { "EIT": "EIT", "BG": "BG", "COMMANDEMENT": "CMD", "DIRECTION": "DIR", "COMMISSION": "CS" },
+        "divisions": { "ULB": "ULB", "URR": "URR", "UPR": "UPR", "UMS": "UMS" },
+        "ranks": {
+            "recrue-eit": "Rec.", "operateur-eit": "Op.", "sergent-eit": "Sgt.", "adjudant-eit": "Adj.", "major-eit": "Mjr.", "lieutenant-eit": "Ltn.", "capitaine-eit": "Cpt.",
+            "agent-securite": "Agt.", "agent-premiere-classe": "A1C.", "caporal": "Cpl.", "caporal-chef": "Cpl-C.", "sergent": "Sgt.", "adjudant": "Adj", "major": "Mjr.", "lieutenant": "Ltn.", "capitaine-equipes": "Cpt.",
+            "commandant-operations": "Cmd-Op.", "chef-securite": "Cds.", "directeur-adjoint": "Dir. Adj.", "directeur": "Dir.", "officier-commission": "Ofc-Com.", "commissaire-conseil-surete": "CCS",
+            "recrue": "Rcr.", "operateur": "Op.", "agent-protection": "APR.", "responsable-equipe": "Resp-Eq.", "agent-medicale": "Agt. Med."
+        }
+    },
     "promotionChannelId": "1542821056685805599",
     "sanctionTypes": ["Avertissement", "Blâme", "Suspension", "Rétrogradation", "Radiation"],
     "activityPointsPerReport": 1,
