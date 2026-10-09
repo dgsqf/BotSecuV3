@@ -65,6 +65,29 @@ test('profile directory is paginated and includes every saved character', async 
 	assert.equal(personnel.getProfileDiscordIds().length, 12);
 });
 
+test('profile directory shows the real Discord username next to the member ping', async () => {
+	const discordId = '100000000000000099';
+	await addProfile(discordId, 'EIT', 'recrue-eit');
+	let collect;
+	let latestPayload;
+	const staffRoleId = Permissions.getRoleIds('personnel.dossier')[0];
+	const message = { createMessageComponentCollector: () => ({ on: (event, callback) => { if (event === 'collect') collect = callback; } }) };
+	const interaction = {
+		user: { id: '100000000000000098', tag: 'directory-staff' },
+		member: { roles: { cache: new Set([staffRoleId]) } },
+		guild: { members: { fetch: async () => new Map() }, roles: { cache: new Map() } },
+		client: { users: { fetch: async (userId) => ({ id: userId, username: 'vrai_pseudo' }) }, log: async () => null },
+		reply: async (payload) => { latestPayload = payload; },
+		fetchReply: async () => message,
+		editReply: async (payload) => { latestPayload = payload; },
+	};
+	await executeDashboard(interaction);
+	await collect({ user: interaction.user, member: interaction.member, customId: 'personnel:list-profiles', deferred: false, deferUpdate: async function() { this.deferred = true; } });
+	assert.match(latestPayload.embeds[0].data.description, /vrai_pseudo/);
+	assert.match(latestPayload.embeds[0].data.description, new RegExp(`<@${discordId}>`));
+	assert.match(latestPayload.embeds[0].data.description, /Jean Test/);
+});
+
 test('directory controls are reserved for members with dossier permission', () => {
 	const roleId = Permissions.getRoleIds('personnel.dossier')[0];
 	const renderFor = (roles) => renderDashboard({

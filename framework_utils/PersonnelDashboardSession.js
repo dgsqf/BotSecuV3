@@ -463,10 +463,20 @@ const loadDirectory = async (state, page = 1) => {
 	state.backPage = 'characters';
 	if (isProfileDirectory) {
 		const result = Personnel.getProfiles({ limit: DIRECTORY_PAGE_SIZE, page });
-		const lines = result.rows.map((profile) => {
+		const usernames = await Promise.all(result.rows.map(async (profile) => {
+			try {
+				const user = await state.interaction.client.users.fetch(profile.discordId);
+				return user.username;
+			}
+			catch (error) {
+				await logDashboardError(state.interaction, null, state, error, 'WARN');
+				return 'Compte Discord introuvable';
+			}
+		}));
+		const lines = result.rows.map((profile, index) => {
 			const scale = profile.division ? `${profile.branch} · ${profile.division}` : profile.branch;
 			const rank = rankLabel(profile.divisionRankId || profile.branchRankId);
-			return `• <@${profile.discordId}> · **${profile.firstName} ${profile.lastName}**\n  ${scale} · ${rank} · IRA ${profile.ira} · ${profile.status === 'active' ? 'Actif' : 'Inactif'}`;
+			return `• **${usernames[index]}** (<@${profile.discordId}>) · ${profile.firstName} ${profile.lastName}\n  ${scale} · ${rank} · IRA ${profile.ira} · ${profile.status === 'active' ? 'Actif' : 'Inactif'}`;
 		});
 		state.directoryPages = result.totalPages;
 		state.directoryEmbed = dashboardEmbed(state, '📚 Tous les personnages', lines.join('\n') || 'Aucun personnage enregistré.')
