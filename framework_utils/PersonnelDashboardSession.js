@@ -19,6 +19,7 @@ const {
 	replyError,
 	formatDuration,
 	syncPersonnelRoles,
+	getPersonnelNickname,
 } = require('./PersonnelDiscord.js');
 
 const COLORS = { home: 0x247ba0, characters: 0x23856d, activity: 0xd08722, sanctions: 0xc34c58, hierarchy: 0x5276a5, error: 0xc0392b };
@@ -216,6 +217,7 @@ const renderDashboard = (state) => {
 		if (canViewDossiers(state.interaction)) actions.push(button('select-profile', '🔎 Consulter un membre'));
 		if (canViewDossiers(state.interaction)) actions.push(button('list-profiles', '📚 Tous les personnages'));
 		if (canViewDossiers(state.interaction)) actions.push(button('list-security-unregistered', '🛡️ Sécurité sans profil'));
+		if (isAdmin(state.interaction)) actions.push(button('nicknames-update', '🏷️ Mettre à jour les pseudos'));
 		if (isAdmin(state.interaction)) actions.push(button('create-profile', '➕ Créer', ButtonStyle.Success), button('edit-profile', '✏️ Modifier', ButtonStyle.Primary));
 		if (actions.length) components.push(row(...actions.slice(0, 5)));
 		if (actions.length > 5) components.push(row(...actions.slice(5, 10)));
@@ -840,6 +842,43 @@ const executeDashboard = async (interaction) => {
 				await currentProfile(state);
 				state.backPage = 'characters';
 				state.page = 'profile';
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'nicknames-update') {
+				if (!isAdmin(component)) throw new Error('La mise à jour des pseudos nécessite un rôle administrateur du personnel.');
+				const { rows } = Personnel.getProfiles({ limit: 25, page: 1 });
+				let updated = 0;
+				let failed = 0;
+				const memberCache = new Map();
+				const fetchMember = async (discordId) => {
+					if (!memberCache.has(discordId)) {
+						memberCache.set(discordId, await component.guild.members.fetch(discordId).catch(() => null));
+					}
+					return memberCache.get(discordId);
+				};
+				for (let page = 1; ; page += 1) {
+					const result = page === 1 ? { rows } : Personnel.getProfiles({ limit: 25, page });
+					if (!result.rows.length) break;
+					for (const profile of result.rows) {
+						const nickname = getPersonnelNickname(profile);
+						if (!nickname) continue;
+						const member = await fetchMember(profile.discordId);
+						if (!member) { failed += 1; continue; }
+						try {
+							if (member.nickname !== nickname) {
+								await member.setNickname(nickname, 'Mise à jour des pseudos du personnel');
+							}
+							updated += 1;
+						}
+						catch (error) {
+							failed += 1;
+							await interaction.client.log('PERSONNEL DASHBOARD', 'WARN', `Pseudo non mis à jour pour <@${profile.discordId}>: ${error?.stack || error}`);
+						}
+					}
+					if (page >= result.totalPages) break;
+				}
+				state.page = 'done';
+				state.notice = `Mise à jour des pseudos terminée : ${updated} pseudo(s) actualisé(s)${failed ? `, ${failed} échec(s) (voir les journaux)` : ''}.`;
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'select-profile') {

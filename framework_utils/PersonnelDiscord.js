@@ -29,15 +29,20 @@ const getPersonnelRoleIds = (profile) => {
 	])];
 };
 
+const capitalizeName = (value) => (typeof value === 'string' && value
+	? value.charAt(0).toLocaleUpperCase('fr') + value.slice(1).toLocaleLowerCase('fr')
+	: '');
+
 const getPersonnelNickname = (profile) => {
 	if (!profile) return null;
 	const abbreviations = config.personnelNicknameAbbreviations || {};
 	const division = profile.division ? abbreviations.divisions?.[profile.division] || profile.division : null;
-	const branch = abbreviations.branches?.[profile.branch] || profile.branch;
+	// La branche générale n'affiche pas son préfixe; seules les divisions le remplacent.
+	const branch = profile.branch === 'BG' ? null : abbreviations.branches?.[profile.branch] || profile.branch;
 	const rankId = profile.division ? profile.divisionRankId : profile.branchRankId;
 	const rank = abbreviations.ranks?.[rankId] || getLadder(profile.branch, profile.division).find(({ id }) => id === rankId)?.label || rankId;
 	const prefix = division || branch;
-	return `${prefix}-${rank} ${profile.firstName} ${profile.lastName}`.toLocaleUpperCase('fr').slice(0, 32);
+	return `${prefix ? `${prefix} ` : ''}${rank} ${capitalizeName(profile.firstName)} ${capitalizeName(profile.lastName)}`.slice(0, 32);
 };
 
 const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextProfile) => {

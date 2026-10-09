@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const config = require('../config.json');
-const { getPersonnelRoleIds, getManualRoleDisplays, syncPersonnelRoles } = require('../framework_utils/PersonnelDiscord.js');
+const { getPersonnelRoleIds, getManualRoleDisplays, syncPersonnelRoles, getPersonnelNickname } = require('../framework_utils/PersonnelDiscord.js');
 
 test('personnel roles are lists and rank roles are scoped by branch and division', () => {
 	const original = {
@@ -109,6 +109,46 @@ test('role synchronization swaps IRA roles when a member changes IRA', async () 
 	finally {
 		config.personnelIraRoleIds['1'] = original.iraOne;
 		config.personnelIraRoleIds['2'] = original.iraTwo;
+	}
+});
+
+test('personnel nicknames capitalize names, drop BG, and keep EIT with a space separator', () => {
+	const originalAbbreviations = config.personnelNicknameAbbreviations;
+	try {
+		config.personnelNicknameAbbreviations = {
+			branches: { EIT: 'EIT', BG: 'BG', COMMANDEMENT: 'CMD', DIRECTION: 'DIR', COMMISSION: 'CS' },
+			divisions: { ULB: 'ULB', URR: 'URR', UPR: 'UPR', UMS: 'UMS' },
+			ranks: { 'agent-premiere-classe': 'A1C.', 'sergent-eit': 'Sgt.', directeur: 'Dir.', recrue: 'Rcr.' },
+		};
+		// Branche générale : pas de préfixe de branche, pas de division si absente.
+		assert.equal(getPersonnelNickname({
+			branch: 'BG', branchRankId: 'agent-premiere-classe', division: null, divisionRankId: null,
+			firstName: 'jean', lastName: 'DUPONT',
+		}), 'A1C. Jean Dupont');
+		// Division : la division est le préfixe, sans tiret.
+		assert.equal(getPersonnelNickname({
+			branch: 'BG', branchRankId: 'agent-premiere-classe', division: 'ULB', divisionRankId: 'recrue',
+			firstName: 'MARIE', lastName: 'martin',
+		}), 'ULB Rcr. Marie Martin');
+		// EIT : préfixe EIT puis le rang, sans tiret.
+		assert.equal(getPersonnelNickname({
+			branch: 'EIT', branchRankId: 'sergent-eit', division: null, divisionRankId: null,
+			firstName: 'paul', lastName: 'durand',
+		}), 'EIT Sgt. Paul Durand');
+		// Direction : préfixe DIR (ni branche générale, ni division).
+		assert.equal(getPersonnelNickname({
+			branch: 'DIRECTION', branchRankId: 'directeur', division: null, divisionRankId: null,
+			firstName: 'léa', lastName: 'petit',
+		}), 'DIR Dir. Léa Petit');
+		// Troncature à 32 caractères.
+		const long = getPersonnelNickname({
+			branch: 'BG', branchRankId: 'agent-premiere-classe', division: null, divisionRankId: null,
+			firstName: 'Alexandre-Frédéric', lastName: 'Chastagnerousse',
+		});
+		assert.ok(long.length <= 32);
+	}
+	finally {
+		config.personnelNicknameAbbreviations = originalAbbreviations;
 	}
 });
 
