@@ -18,7 +18,6 @@ const {
 	hasPersonnelPermission,
 	replyError,
 	formatDuration,
-	getManualRoleDisplays,
 	syncPersonnelRoles,
 } = require('./PersonnelDiscord.js');
 
@@ -32,6 +31,8 @@ const BRANCHES = [
 ];
 const DIVISIONS = ['ULB', 'URR', 'UPR', 'UMS'];
 const SANCTION_TYPES = (config.sanctionTypes || []).slice(0, 25).map((value) => ({ label: value, value }));
+const SECURITY_ROLE_ID = config.UrgenceDivisions?.brancheGen?.roleId;
+const DIRECTORY_PAGE_SIZE = 10;
 const SCALES = [
 	{ label: 'EIT', branch: 'EIT' },
 	{ label: 'Branche générale', branch: 'BG' },
@@ -62,7 +63,7 @@ const viewOptions = [
 	{ label: 'Hiérarchie', value: 'hierarchy', description: 'Parcourir les rangs, promouvoir par vague ou rétrograder.' },
 ];
 const HELP = {
-	characters: 'Chaque membre peut ouvrir son propre dossier. Le personnel autorisé peut consulter les dossiers d’autres membres; la création, la modification complète, le changement de branche/division/rang et la suppression sont réservés aux administrateurs du personnel.',
+	characters: 'Chaque membre peut ouvrir son propre dossier. Le personnel autorisé peut consulter ou lister les personnages et repérer les membres portant le rôle Sécurité sans profil enregistré. La création, la modification et la suppression restent réservées aux administrateurs du personnel.',
 	activity: 'Le classement agrège les points ou les heures depuis le début, sur 7 jours ou sur 30 jours. Votre activité personnelle est consultable avec un profil. Le personnel autorisé peut ajouter ou retirer des points/heures; chaque correction exige un motif et est journalisée.',
 	sanctions: 'Un membre peut consulter ses propres sanctions. Le personnel autorisé peut consulter le dossier d’un autre membre, ajouter une sanction avec un motif ou révoquer un dossier actif avec un motif de révocation. Les historiques sont paginés.',
 	hierarchy: 'Les échelles affichent les rangs du plus bas au plus élevé, l’IRA et les limites d’effectif configurées. Une vague de promotions vérifie les rangs suivants et leurs places disponibles avant confirmation. La rétrogradation applique le rang immédiatement inférieur.',
@@ -93,15 +94,7 @@ const pageViewRow = (state) => row(makeSelect('view', 'Choisir une vue · chaque
 const profileEmbed = async (interaction, discordId) => {
 	const profile = await Personnel.getProfile(discordId);
 	if (!profile) throw new Error('Aucun personnage n’existe pour ce membre.');
-	let member = null;
-	try {
-		member = await interaction.guild.members.fetch(discordId);
-	}
-	catch (error) {
-		await interaction.client.log('PERSONNEL DASHBOARD', 'WARN', `Impossible de récupérer le membre ${discordId} pour la fiche de ${interaction.user.id}: ${error?.stack || error}`);
-	}
 	const sanctions = await Personnel.getActiveSanctionCount(discordId);
-	const manualRoles = getManualRoleDisplays(interaction.guild, member);
 	return new EmbedBuilder()
 		.setColor(profile.status === 'active' ? 0x23856d : 0xd08722)
 		.setTitle(`👤 ${profile.firstName} ${profile.lastName}`)
@@ -112,7 +105,6 @@ const profileEmbed = async (interaction, discordId) => {
 			{ name: '🎖️ IRA', value: String(profile.ira), inline: true },
 			{ name: '📈 Activité', value: `${profile.activityPoints} points\n${formatDuration(profile.activityMinutes)}`, inline: true },
 			{ name: '⚖️ Sanctions actives', value: String(sanctions), inline: true },
-			{ name: '🧩 Fonctions manuelles', value: manualRoles.join('\n') || 'Aucune' },
 		);
 };
 
@@ -218,12 +210,15 @@ const renderDashboard = (state) => {
 		components.push(row(button('help', '❔ Aide', ButtonStyle.Secondary, true), button('back', '⬅ Retour à la vue')));
 	}
 	else if (state.page === 'characters') {
-		embed = dashboardEmbed(state, '👥 Personnages', 'Consultez votre propre dossier. Le staff peut consulter les autres profils; les administrateurs peuvent créer, modifier ou supprimer un personnage.');
+		embed = dashboardEmbed(state, '👥 Personnages', 'Consultez votre dossier, recherchez un profil, ou listez les membres Sécurité qui ne sont pas encore recensés.');
 		const actions = [];
 		if (state.hasOwnProfile) actions.push(button('self-profile', '👤 Info personnel', ButtonStyle.Primary));
 		if (canViewDossiers(state.interaction)) actions.push(button('select-profile', '🔎 Consulter un membre'));
+		if (canViewDossiers(state.interaction)) actions.push(button('list-profiles', '📚 Tous les personnages'));
+		if (canViewDossiers(state.interaction)) actions.push(button('list-security-unregistered', '🛡️ Sécurité sans profil'));
 		if (isAdmin(state.interaction)) actions.push(button('create-profile', '➕ Créer', ButtonStyle.Success), button('edit-profile', '✏️ Modifier', ButtonStyle.Primary));
 		if (actions.length) components.push(row(...actions.slice(0, 5)));
+		if (actions.length > 5) components.push(row(...actions.slice(5, 10)));
 		components.push(...backRows);
 	}
 	else if (state.page === 'profile') {
@@ -269,6 +264,18 @@ const renderDashboard = (state) => {
 	else if (state.page === 'confirm-delete') {
 		embed = dashboardEmbed(state, '⚠️ Supprimer le personnage ?', 'La suppression effacera aussi ses données d’activité et son historique de sanctions. Cette action est irréversible.', [{ name: 'Personnage', value: state.profile ? `${state.profile.firstName} ${state.profile.lastName} · <@${state.targetId}>` : `<@${state.targetId}>` }], COLORS.error);
 		components.push(row(button('delete-confirm', '🗑️ Confirmer la suppression', ButtonStyle.Danger), button('back', 'Annuler')));
+	}
+	else if (state.page === 'profile-directory' || state.page === 'security-directory') {
+		const isProfileDirectory = state.page === 'profile-directory';
+		embed = state.directoryEmbed || dashboardEmbed(state,
+			isProfileDirectory ? '📚 Tous les personnages' : '🛡️ Sécurité sans profil',
+			'Aucune liste chargée.',
+		);
+		components.push(row(
+			button('directory-prev', '◀ Précédent', ButtonStyle.Secondary, state.directoryPage <= 1),
+			button('directory-next', 'Suivant ▶', ButtonStyle.Secondary, state.directoryPage >= state.directoryPages),
+		));
+		components.push(...backRows);
 	}
 	else if (state.page === 'activity') {
 		embed = state.leaderboardEmbed || dashboardEmbed(state, '📈 Activité', 'Classement du personnel actif. Choisissez le type et la période; les corrections sont réservées au staff.');
@@ -450,6 +457,36 @@ const setNotice = (state, error) => {
 	state.notice = error instanceof Error ? error.message : String(error);
 };
 
+const loadDirectory = async (state, page = 1) => {
+	const isProfileDirectory = state.page === 'profile-directory';
+	state.directoryPage = page;
+	state.backPage = 'characters';
+	if (isProfileDirectory) {
+		const result = Personnel.getProfiles({ limit: DIRECTORY_PAGE_SIZE, page });
+		const lines = result.rows.map((profile) => {
+			const scale = profile.division ? `${profile.branch} · ${profile.division}` : profile.branch;
+			const rank = rankLabel(profile.divisionRankId || profile.branchRankId);
+			return `• <@${profile.discordId}> · **${profile.firstName} ${profile.lastName}**\n  ${scale} · ${rank} · IRA ${profile.ira} · ${profile.status === 'active' ? 'Actif' : 'Inactif'}`;
+		});
+		state.directoryPages = result.totalPages;
+		state.directoryEmbed = dashboardEmbed(state, '📚 Tous les personnages', lines.join('\n') || 'Aucun personnage enregistré.')
+			.setFooter({ text: `${result.totalRows} personnage(s) · Page ${page}/${result.totalPages}` });
+		return;
+	}
+	if (!SECURITY_ROLE_ID) throw new Error('Le rôle Sécurité n’est pas configuré dans config.json (UrgenceDivisions.brancheGen.roleId).');
+	if (!state.interaction.guild.members.fetch) throw new Error('Impossible de lister les membres du serveur. Vérifiez l’intent privilégié Server Members Intent dans le portail Discord.');
+	const members = await state.interaction.guild.members.fetch();
+	const profiles = new Set(Personnel.getProfileDiscordIds());
+	const unregistered = [...members.values()]
+		.filter((member) => !member.user.bot && member.roles.cache.has(SECURITY_ROLE_ID) && !profiles.has(member.id))
+		.sort((left, right) => left.displayName.localeCompare(right.displayName, 'fr'));
+	state.directoryPages = Math.max(1, Math.ceil(unregistered.length / DIRECTORY_PAGE_SIZE));
+	const start = (page - 1) * DIRECTORY_PAGE_SIZE;
+	const lines = unregistered.slice(start, start + DIRECTORY_PAGE_SIZE).map((member) => `• <@${member.id}> · **${member.displayName}** · ${member.user.tag}`);
+	state.directoryEmbed = dashboardEmbed(state, '🛡️ Sécurité sans profil', lines.join('\n') || 'Tous les membres portant le rôle Sécurité ont déjà un profil.')
+		.setFooter({ text: `${unregistered.length} membre(s) non recensé(s) · Page ${page}/${state.directoryPages}` });
+};
+
 const logDashboardError = async (interaction, component, state, error, severity = 'ERROR') => {
 	const context = `Action: ${component?.customId || 'inconnue'}; vue: ${state?.view || 'inconnue'}; page: ${state?.page || 'inconnue'}; utilisateur: ${interaction.user.id}; cible: ${state?.targetId || 'aucune'}; erreur: ${error?.stack || error}`;
 	try {
@@ -481,7 +518,7 @@ const executeDashboard = async (interaction) => {
 		userTag: interaction.user.tag,
 		hasOwnProfile,
 		view: 'characters',
-		page: 'home',
+		page: 'characters',
 		backPage: 'home',
 		helpView: null,
 		notice: '',
@@ -497,6 +534,9 @@ const executeDashboard = async (interaction) => {
 		includeRevoked: false,
 		activityAdjustment: null,
 		draft: {},
+		directoryPage: 1,
+		directoryPages: 1,
+		directoryEmbed: null,
 		scaleIndex: 0,
 		promotionIds: [],
 		promotionLabels: [],
@@ -586,6 +626,19 @@ const executeDashboard = async (interaction) => {
 				const history = await buildHistory(state.targetId, state.includeRevoked, state.historyPage, state.historyUserTag);
 				state.historyEmbed = history.embed;
 				state.historyPages = history.result.totalPages;
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'list-profiles' || id === 'list-security-unregistered') {
+				if (!canViewDossiers(component)) throw new Error('Lister les personnages nécessite la permission personnel.dossier.');
+				state.page = id === 'list-profiles' ? 'profile-directory' : 'security-directory';
+				state.backPage = 'characters';
+				await loadDirectory(state, 1);
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'directory-prev' || id === 'directory-next') {
+				if (!canViewDossiers(component)) throw new Error('Lister les personnages nécessite toujours la permission personnel.dossier.');
+				const page = state.directoryPage + (id === 'directory-next' ? 1 : -1);
+				await loadDirectory(state, Math.max(1, Math.min(state.directoryPages, page)));
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'promotion-remove') {
@@ -816,9 +869,8 @@ const executeDashboard = async (interaction) => {
 			if (id === 'delete-confirm') {
 				if (!isAdmin(component)) throw new Error('La suppression nécessite un rôle administrateur du personnel.');
 				await Personnel.deleteProfile(state.targetId);
-				await syncPersonnelRoles(component, state.targetId, state.profile, null);
 				state.page = 'done';
-				state.notice = `Le personnage <@${state.targetId}> et ses données associées ont été supprimés.`;
+				state.notice = `Le personnage <@${state.targetId}> et ses données associées ont été supprimés. Ses rôles Discord ont été conservés pour un retrait manuel.`;
 				return component.update(renderDashboard(state));
 			}
 			if (['edit-status', 'edit-branch', 'edit-division', 'edit-rank'].includes(id)) {

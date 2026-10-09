@@ -46,6 +46,41 @@ const hasProfile = (discordId) => {
 	return Boolean(getDatabase().prepare('SELECT 1 FROM members WHERE discord_id = ?').get(discordId));
 };
 
+const getProfileDiscordIds = () => getDatabase()
+	.prepare('SELECT discord_id FROM members')
+	.all()
+	.map(({ discord_id: discordId }) => discordId);
+
+const getProfiles = ({ limit = 10, page = 1 } = {}) => {
+	if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(page) || page < 1) throw new Error('La pagination des personnages est invalide.');
+	limit = Math.min(limit, 25);
+	const db = getDatabase();
+	const totalRows = db.prepare('SELECT COUNT(*) AS count FROM members').get().count;
+	const rows = db.prepare(`
+		SELECT discord_id, first_name, last_name, branch, branch_rank_id, division, division_rank_id, ira, status
+		FROM members
+		ORDER BY last_name COLLATE NOCASE, first_name COLLATE NOCASE, discord_id
+		LIMIT ? OFFSET ?
+	`).all(limit, (page - 1) * limit);
+	return {
+		rows: rows.map((profile) => ({
+			discordId: profile.discord_id,
+			firstName: profile.first_name,
+			lastName: profile.last_name,
+			branch: profile.branch,
+			branchRankId: profile.branch_rank_id,
+			division: profile.division,
+			divisionRankId: profile.division_rank_id,
+			ira: profile.ira,
+			status: profile.status,
+		})),
+		totalRows,
+		page,
+		limit,
+		totalPages: Math.max(1, Math.ceil(totalRows / limit)),
+	};
+};
+
 const requireText = (value, label, maxLength = 100) => {
 	if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} est obligatoire.`);
 	if (value.trim().length > maxLength) throw new Error(`${label} ne peut pas dépasser ${maxLength} caractères.`);
@@ -523,6 +558,8 @@ module.exports = {
 	setDatabase,
 	getProfile,
 	hasProfile,
+	getProfileDiscordIds,
+	getProfiles,
 	getRankLimit,
 	getRankCounts,
 	createProfile,

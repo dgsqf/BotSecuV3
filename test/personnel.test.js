@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { openDatabase } = require('../framework_utils/Database.js');
+const Permissions = require('../framework_utils/Permissions.js');
 const personnel = require('../framework_utils/Personnel.js');
 const { getLadder } = require('../data/hierarchy.js');
 const config = require('../config.json');
@@ -50,6 +51,77 @@ test('a database profile grants private self-info access without staff roles', a
 	assert.ok(!components.some((component) => component.data.custom_id === 'personnel:delete-profile'));
 });
 
+test('profile directory is paginated and includes every saved character', async () => {
+	for (let index = 0; index < 12; index++) {
+		await addProfile(`directory-${String(index).padStart(2, '0')}`, 'EIT', 'recrue-eit');
+	}
+	const first = personnel.getProfiles({ limit: 10, page: 1 });
+	const second = personnel.getProfiles({ limit: 10, page: 2 });
+	assert.equal(first.totalRows, 12);
+	assert.equal(first.totalPages, 2);
+	assert.equal(first.rows.length, 10);
+	assert.equal(second.rows.length, 2);
+	assert.equal(new Set([...first.rows, ...second.rows].map(({ discordId }) => discordId)).size, 12);
+	assert.equal(personnel.getProfileDiscordIds().length, 12);
+});
+
+test('directory controls are reserved for members with dossier permission', () => {
+	const roleId = Permissions.getRoleIds('personnel.dossier')[0];
+	const renderFor = (roles) => renderDashboard({
+		interaction: { member: { roles: { cache: new Set(roles) } } },
+		userTag: 'directory-viewer',
+		view: 'characters',
+		page: 'characters',
+		backPage: 'home',
+		hasOwnProfile: true,
+	});
+	const privateButtons = renderFor([]).components.flatMap((componentRow) => componentRow.components).map((component) => component.data.custom_id);
+	const staffButtons = renderFor([roleId]).components.flatMap((componentRow) => componentRow.components).map((component) => component.data.custom_id);
+	assert.ok(!privateButtons.includes('personnel:list-profiles'));
+	assert.ok(!privateButtons.includes('personnel:list-security-unregistered'));
+	assert.ok(staffButtons.includes('personnel:list-profiles'));
+	assert.ok(staffButtons.includes('personnel:list-security-unregistered'));
+});
+
+test('security directory excludes existing profiles and bot accounts', async () => {
+	const registeredId = '100000000000000101';
+	const unregisteredId = '100000000000000102';
+	const botId = '100000000000000103';
+	await addProfile(registeredId, 'BG', 'agent-securite');
+	const securityRoleId = config.UrgenceDivisions.brancheGen.roleId;
+	const members = new Map([
+		[registeredId, { id: registeredId, user: { id: registeredId, tag: 'registered#0001', bot: false }, displayName: 'Registered', roles: { cache: new Set([securityRoleId]) } }],
+		[unregisteredId, { id: unregisteredId, user: { id: unregisteredId, tag: 'unregistered#0001', bot: false }, displayName: 'Unregistered', roles: { cache: new Set([securityRoleId]) } }],
+		[botId, { id: botId, user: { id: botId, tag: 'bot#0001', bot: true }, displayName: 'Bot', roles: { cache: new Set([securityRoleId]) } }],
+	]);
+	let collect;
+	let latestPayload;
+	const memberRoleId = Permissions.getRoleIds('personnel.dossier')[0];
+	const message = { createMessageComponentCollector: () => ({ on: (event, callback) => { if (event === 'collect') collect = callback; } }) };
+	const interaction = {
+		user: { id: '100000000000000199', tag: 'dossier-staff' },
+		member: { roles: { cache: new Set([memberRoleId]) } },
+		guild: { members: { fetch: async () => members }, roles: { cache: new Map() } },
+		client: { log: async () => null },
+		reply: async (payload) => { latestPayload = payload; },
+		fetchReply: async () => message,
+		editReply: async (payload) => { latestPayload = payload; },
+	};
+	await executeDashboard(interaction);
+	const component = {
+		user: interaction.user,
+		member: interaction.member,
+		customId: 'personnel:list-security-unregistered',
+		deferred: false,
+		deferUpdate: async function() { this.deferred = true; },
+	};
+	await collect(component);
+	assert.equal(latestPayload.embeds[0].data.title, '🛡️ Sécurité sans profil');
+	assert.match(latestPayload.embeds[0].data.description, new RegExp(unregisteredId));
+	assert.doesNotMatch(latestPayload.embeds[0].data.description, new RegExp(registeredId));
+	assert.doesNotMatch(latestPayload.embeds[0].data.description, new RegExp(botId));
+});
+
 test('dashboard navigates views and self profile by editing its original response', async () => {
 	await addProfile('dashboard-user', 'EIT', 'recrue-eit');
 	let collect;
@@ -73,6 +145,7 @@ test('dashboard navigates views and self profile by editing its original respons
 	const logs = [];
 	await executeDashboard(interaction);
 	assert.equal(replyCount, 1);
+	assert.equal(edits[0].embeds[0].data.title, '👥 Personnages');
 	assert.ok(edits[0].components.flatMap((componentRow) => componentRow.components).some((component) => component.data.custom_id === 'personnel:view'));
 
 	const viewComponent = {
@@ -94,6 +167,10 @@ test('dashboard navigates views and self profile by editing its original respons
 		deferred: false,
 		deferUpdate: async function() { this.deferred = true; },
 	};
+	await collect(profileComponent);
+	assert.equal(edits.at(-1).embeds[0].data.title, '👤 Jean Test');
+	assert.ok(!edits.at(-1).embeds[0].data.fields.some((field) => field.name === '🧩 Fonctions manuelles'));
+	profileComponent.deferred = false;
 	const originalGetProfile = personnel.getProfile;
 	personnel.getProfile = async () => { throw new Error('simulated dashboard failure'); };
 	try {
@@ -108,6 +185,43 @@ test('dashboard navigates views and self profile by editing its original respons
 	assert.match(logs[0], /personnel:self-profile/);
 	assert.match(logs[0], /dashboard-user/);
 	assert.match(logs[0], /simulated dashboard failure/);
+});
+
+test('deleting a profile leaves its Discord roles untouched', async () => {
+	const targetId = '100000000000000211';
+	await addProfile(targetId, 'BG', 'agent-securite');
+	let collect;
+	let memberFetchCount = 0;
+	const roleIds = [...Permissions.getRoleIds('personnel.admin'), ...Permissions.getRoleIds('personnel.dossier')];
+	const member = { id: targetId, user: { tag: 'member#0001' }, displayName: 'Member', roles: { cache: new Set() } };
+	const message = { createMessageComponentCollector: () => ({ on: (event, callback) => { if (event === 'collect') collect = callback; } }) };
+	const interaction = {
+		user: { id: '100000000000000212', tag: 'admin#0001' },
+		member: { roles: { cache: new Set(roleIds) } },
+		guild: {
+			members: { fetch: async () => { memberFetchCount++; return member; } },
+			roles: { cache: new Map() },
+		},
+		client: { log: async () => null },
+		reply: async () => null,
+		fetchReply: async () => message,
+		editReply: async () => null,
+	};
+	await executeDashboard(interaction);
+	const click = async (customId, values = []) => collect({
+		user: interaction.user,
+		member: interaction.member,
+		customId: `personnel:${customId}`,
+		values,
+		deferred: false,
+		deferUpdate: async function() { this.deferred = true; },
+	});
+	await click('select-profile');
+	await click('profile-member', [targetId]);
+	await click('delete-profile');
+	await click('delete-confirm');
+	assert.equal(await personnel.getProfile(targetId), null);
+	assert.equal(memberFetchCount, 0, 'deleting a database profile must not fetch the member or modify Discord roles');
 });
 
 test('previewPromotion advances EIT and BG members by one rank', async () => {

@@ -53,6 +53,7 @@ if (!process.env.DISCORD_BOT_TOKEN) {
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMembers,
 		GatewayIntentBits.GuildMessageReactions,
 	],
 
