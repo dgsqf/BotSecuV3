@@ -67,6 +67,15 @@ module.exports = {
 		try {
 			timestamps.set(interaction.user.id, now);
 			setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
+			if (typeof command.canExecute === 'function' && !command.canExecute(interaction)) {
+				return interaction.reply({
+					embeds: [new EmbedBuilder()
+						.setColor(0xed4245)
+						.setTitle('Accès refusé')
+						.setDescription('Vous ne pouvez pas utiliser cette commande.')],
+					flags: MessageFlags.Ephemeral,
+				});
+			}
 			await command.execute(interaction);
 		}
 		catch (error) {

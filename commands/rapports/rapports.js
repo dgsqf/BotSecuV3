@@ -11,6 +11,14 @@ const {
 } = require('../../config.json');
 const hasReportPermission = (interaction) => Permissions.hasPermission(interaction, 'rapports.creer');
 
+// Rôle « Non recensé (membre de la sécurité) » : ses porteurs ne peuvent pas ouvrir de rapport,
+// même s'ils ont le rôle Sécurité requis par rapports.creer.
+const UNREGISTERED_ROLE_ID = '1553807221261996052';
+
+// Permission rapports.creer + rôle non-recensé interdit : un membre non recensé ne peut pas ouvrir un rapport.
+const canOpenReport = (interactionOrMember) =>
+	hasReportPermission(interactionOrMember) && !Permissions.hasRole(interactionOrMember, UNREGISTERED_ROLE_ID);
+
 const getUserThread = async (forumChannel, username) => {
 	const cacheThreads = forumChannel?.threads?.cache ?? [];
 	const cachedThread = cacheThreads.find((thread) => thread?.name?.toLowerCase() === username.toLowerCase());
@@ -124,7 +132,7 @@ const buildReportForm = (type) => {
 			})
 			.section('Détails', 'Décrivez la prise de service et ses observations.', (sectionForm) => {
 				sectionForm.text('incident', 'Incident éventuel', { paragraph: true, required: false });
-				sectionForm.text('duree', 'Durée de la prise de service', { required: true });
+				sectionForm.text('duree', 'Durée de la prise de service (heures et minutes)', { required: true, placeholder: 'Exemple : 2 h 30 ou 1 h 45' });
 				sectionForm.text('activites_suspectes', 'Activités suspectes', { paragraph: true, required: false });
 			});
 	}
@@ -154,11 +162,14 @@ const buildReportForm = (type) => {
 const startReport = async (interaction, reportGuild = interaction.guild) => {
 	const member = interaction.member || await reportGuild?.members.fetch(interaction.user.id).catch(() => null);
 
-	if (!hasReportPermission({ member })) {
+	if (!canOpenReport({ member })) {
+		const isUnregistered = Permissions.hasRole({ member }, UNREGISTERED_ROLE_ID);
 		const denied_access_embed = new EmbedBuilder()
 			.setColor(0xFF0000)
 			.setTitle('Accès refusé')
-			.setDescription('Vous ne possédez pas la permission rapports.creer.');
+			.setDescription(isUnregistered
+				? 'Les membres non recensés ne peuvent pas rédiger de rapport. Faites-vous enregistrer auprès du département de la sécurité.'
+				: 'Vous ne possédez pas la permission rapports.creer.');
 		return interaction.reply({
 			embeds: [denied_access_embed],
 			flags: MessageFlags.Ephemeral,
@@ -202,11 +213,9 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 				{ label: 'Rapport concernant le personnel', value: 'personnel' },
 				{ label: 'Rapport d\'expérience', value: 'experience' },
 			], { required: true });
-		});
-
-	await typeForm.send(interaction, {
+		});		await typeForm.send(interaction, {
 		ephemeral: true,
-		canSubmit: hasReportPermission,
+		canSubmit: canOpenReport,
 		onConfirm: async (typeData, meta) => {
 			const reportType = typeData.rapport_type;
 			if (!reportType) {
@@ -222,7 +231,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 			const detailedForm = buildReportForm(reportType);
 			await detailedForm.send(interaction, {
 				ephemeral: true,
-				canSubmit: hasReportPermission,
+				canSubmit: canOpenReport,
 				onConfirm: async (reportData, formMeta) => {
 					const userThreadName = meta.username;
 					let thread = await getUserThread(forumChannel, userThreadName);
@@ -243,7 +252,22 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 						? 'Rapport d\'incident'
 						: reportType === 'prise-service' ? 'Rapport de prise de service' : reportType === 'experience' ? 'Rapport d\'expérience' : 'Rapport concernant le personnel';
 					const reportDate = formatDiscordDate(reportData.date);
-					const serviceHours = reportType === 'prise-service' ? parseServiceDurationHours(reportData.duree) : null;
+					let serviceHours = null;
+					// Durée obligatoire : si elle est illisible, on refuse l'envoi avec un message explicite au lieu d'enregistrer un rapport inutilisable.
+					if (reportType === 'prise-service') {
+						serviceHours = parseServiceDurationHours(reportData.duree);
+						if (serviceHours == null) {
+							await interaction.followUp({
+								embeds: [new EmbedBuilder()
+									.setColor(0xed4245)
+									.setTitle('Durée non reconnue')
+									.setDescription(`La durée « ${String(reportData.duree).trim()} » n’a pas été reconnue. Utilisez un format heures + minutes, par exemple « 2 h 30 » ou « 1:45 ».`)],
+								flags: MessageFlags.Ephemeral,
+							});
+							await interaction.client.log('RAPPORT', 'WARN', `Rapport de prise de service refusé : durée illisible (${formMeta.username} <@${formMeta.user_id}>).`);
+							return;
+						}
+					}
 					const embed = new EmbedBuilder()
 						.setColor(0x5865f2)
 						.setTitle(`📄 ${reportTitle}`)
@@ -317,7 +341,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('rapport')
 		.setDescription('Crée un nouveau rapport'),
-	canExecute: hasReportPermission,
+	canExecute: canOpenReport,
 	execute: startReport,
 	startReport,
 	parseServiceDurationHours,

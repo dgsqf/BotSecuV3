@@ -87,24 +87,32 @@ const requireText = (value, label, maxLength = 100) => {
 	return value.trim();
 };
 
-const resolveProfileRank = ({ branch, division = null, rankId }) => {
+const resolveProfileRank = ({ branch, division = null, rankId, branchRankId = null } = {}) => {
 	if (!getLadder(branch).length) throw new Error('Branche invalide.');
-	if (branch !== 'BG' && division != null) throw new Error('Seule la branche BG peut avoir une division.');
+	// BG et EIT peuvent avoir une division; les autres branches n'en ont pas.
+	if (!['BG', 'EIT'].includes(branch) && division != null) throw new Error('Seules les branches BG et EIT peuvent avoir une division.');
 	if (division != null && !['ULB', 'URR', 'UPR', 'UMS'].includes(division)) throw new Error('Division invalide.');
 
 	if (division) {
 		const ladder = getLadder('BG', division);
 		const divisionRankId = rankId || ladder[0].id;
 		if (!ladder.some((rank) => rank.id === divisionRankId)) throw new Error('Ce rang n’appartient pas à la division sélectionnée.');
-		const branchRankId = mapDivisionRankToBg(divisionRankId);
-		if (!branchRankId) throw new Error('Aucune correspondance BG n’est définie pour ce rang de division.');
-		return { branchRankId, division, divisionRankId, ira: computeIra({ branch, branchRankId, division, divisionRankId }) };
+		const mappedRankId = mapDivisionRankToBg(divisionRankId);
+		// Pour EIT, le rang BG reste le rang EIT courant : on garde donc un branchRankId EIT existant, sinon le rang de base.
+		if (branch === 'EIT') {
+			const eitRankId = branchRankId ?? 'operateur-eit';
+			if (!getLadder('EIT').some((rank) => rank.id === eitRankId)) throw new Error('Rang EIT invalide.');
+			// L'IRA d'une division BG est basé sur le rang de division.
+			return { branchRankId: eitRankId, division, divisionRankId, ira: computeIra({ branch: 'BG', division, divisionRankId, branchRankId: mappedRankId || 'agent-premiere-classe' }) };
+		}
+		if (!mappedRankId) throw new Error('Aucune correspondance BG n’est définie pour ce rang de division.');
+		return { branchRankId: mappedRankId, division, divisionRankId, ira: computeIra({ branch, branchRankId: mappedRankId, division, divisionRankId }) };
 	}
 
 	const ladder = getLadder(branch);
-	const branchRankId = rankId || ladder[0].id;
-	if (!ladder.some((rank) => rank.id === branchRankId)) throw new Error('Ce rang n’appartient pas à la branche sélectionnée.');
-	return { branchRankId, division: null, divisionRankId: null, ira: computeIra({ branch, branchRankId }) };
+	const resolvedBranchRankId = rankId || ladder[0].id;
+	if (!ladder.some((rank) => rank.id === resolvedBranchRankId)) throw new Error('Ce rang n’appartient pas à la branche sélectionnée.');
+	return { branchRankId: resolvedBranchRankId, division: null, divisionRankId: null, ira: computeIra({ branch, branchRankId: resolvedBranchRankId }) };
 };
 
 const getRankLimit = (branch, division, rankId) => {
@@ -204,10 +212,10 @@ const deleteProfile = async (discordId) => {
 	return result.changes > 0;
 };
 
-const setDivision = async (discordId, division, rankId) => {
+const setDivision = async (discordId, division, rankId, { branchRankId = null } = {}) => {
 	const profile = await getProfile(discordId);
 	if (!profile) throw new Error('Aucun profil n’existe pour ce membre.');
-	if (profile.branch !== 'BG') throw new Error('La gestion de division est réservée à la branche BG.');
+	if (!['BG', 'EIT'].includes(profile.branch)) throw new Error('La gestion de division est réservée aux branches BG et EIT.');
 	if (division == null) {
 		const ira = computeIra({ branch: profile.branch, branchRankId: profile.branchRankId });
 		const db = getDatabase();
@@ -221,9 +229,13 @@ const setDivision = async (discordId, division, rankId) => {
 
 	if (!['ULB', 'URR', 'UPR', 'UMS'].includes(division)) throw new Error('Division invalide.');
 	const divisionRankId = rankId || getLadder('BG', division)[0].id;
-	const branchRankId = mapDivisionRankToBg(divisionRankId);
-	if (!branchRankId || !getLadder('BG', division).some((rank) => rank.id === divisionRankId)) throw new Error('Ce rang n’appartient pas à la division sélectionnée.');
-	const ira = computeIra({ branch: profile.branch, branchRankId, division, divisionRankId });
+	if (!getLadder('BG', division).some((rank) => rank.id === divisionRankId)) throw new Error('Ce rang n’appartient pas à la division sélectionnée.');
+	// Pour un membre EIT, le rang de branche EIT est conservé; pour BG, celui de la division s'applique.
+	const effectiveBranchRankId = profile.branch === 'EIT'
+		? (branchRankId || profile.branchRankId)
+		: mapDivisionRankToBg(divisionRankId);
+	if (!effectiveBranchRankId) throw new Error('Aucune correspondance de rang n’est définie pour ce rang de division.');
+	const ira = computeIra({ branch: 'BG', branchRankId: mapDivisionRankToBg(divisionRankId) || 'agent-premiere-classe', division, divisionRankId });
 	const db = getDatabase();
 	db.transaction(() => {
 		assertRankCapacity(db, profile.branch, division, divisionRankId, discordId);
@@ -231,7 +243,7 @@ const setDivision = async (discordId, division, rankId) => {
 			UPDATE members
 			SET branch_rank_id = ?, division = ?, division_rank_id = ?, ira = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 			WHERE discord_id = ? AND branch = ? AND branch_rank_id = ? AND division IS ? AND division_rank_id IS ?
-		`).run(branchRankId, division, divisionRankId, ira, discordId, profile.branch, profile.branchRankId, profile.division, profile.divisionRankId);
+		`).run(effectiveBranchRankId, division, divisionRankId, ira, discordId, profile.branch, profile.branchRankId, profile.division, profile.divisionRankId);
 		if (!result.changes) throw new Error('Le profil a changé pendant la modification; recommencez.');
 	})();
 	return getProfile(discordId);

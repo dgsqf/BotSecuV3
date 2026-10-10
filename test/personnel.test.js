@@ -311,7 +311,12 @@ test('setBranch changes branch or division and resets to a valid rank and IRA', 
 	assert.equal(eit.branch, 'EIT');
 	assert.equal(eit.division, null);
 	assert.equal(eit.ira, 2);
-	await assert.rejects(() => personnel.setBranch('branch-change', 'EIT', 'ULB'), /Seule la branche BG/);
+	// EIT peut aussi porter une division : la bascule EIT + division est acceptée.
+	const eitDivision = await personnel.setBranch('branch-change', 'EIT', 'ULB', 'recrue');
+	assert.equal(eitDivision.branch, 'EIT');
+	assert.equal(eitDivision.division, 'ULB');
+	assert.equal(eitDivision.divisionRankId, 'recrue');
+	await assert.rejects(() => personnel.setBranch('branch-change', 'COMMANDEMENT', 'ULB'), /Seules les branches BG et EIT/);
 });
 
 test('Direction and Commission profiles use independent rank ladders', async () => {
@@ -336,7 +341,7 @@ test('Direction and Commission profiles use independent rank ladders', async () 
 		lastName: 'Sureté',
 		branch: 'COMMISSION',
 		division: 'ULB',
-	}), /Seule la branche BG/);
+	}), /Seules les branches BG et EIT/);
 });
 
 test('rank capacity rejects active overflow and releases a slot for inactive profiles', async () => {

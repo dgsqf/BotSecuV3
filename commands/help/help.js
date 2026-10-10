@@ -22,13 +22,21 @@ const moduleCommands = (client, moduleId) => [...client.commands.values()]
 	.filter((command) => commandHelp[command.data.name]?.module === moduleId)
 	.sort((left, right) => left.data.name.localeCompare(right.data.name, 'fr'));
 
+const chunkComponents = (components, size = 5) => {
+	const rows = [];
+	for (let index = 0; index < components.length; index += size) {
+		rows.push(new ActionRowBuilder().addComponents(components.slice(index, index + size)));
+	}
+	return rows;
+};
+
 const buildHome = () => ({
 	embeds: [new EmbedBuilder()
 		.setColor(COLOR)
 		.setTitle('Aide du bot')
 		.setDescription('Choisissez un module pour parcourir ses commandes et leurs fiches détaillées.')
 		.addFields(MODULES.map((module) => ({ name: `${module.emoji} ${module.label}`, value: module.description, inline: true })))],
-	components: [new ActionRowBuilder().addComponents(MODULES.map((module) => button(`help:module:${module.id}`, module.label, ButtonStyle.Primary, module.emoji)))],
+	components: chunkComponents(MODULES.map((module) => button(`help:module:${module.id}`, module.label, ButtonStyle.Primary, module.emoji))),
 });
 
 const buildModule = (client, module) => {

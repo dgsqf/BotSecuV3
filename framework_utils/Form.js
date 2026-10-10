@@ -408,7 +408,7 @@ class Form {
 						const modal = new ModalBuilder().setCustomId(i.customId).setTitle(field.label.slice(0, 45));
 						const textInput = new TextInputBuilder()
 							.setCustomId('value')
-							.setPlaceholder(field.label)
+							.setPlaceholder(field.placeholder || field.label)
 							.setStyle(field.paragraph ? TextInputStyle.Paragraph : TextInputStyle.Short)
 							.setRequired(field.required !== false);
 						const label = new LabelBuilder();

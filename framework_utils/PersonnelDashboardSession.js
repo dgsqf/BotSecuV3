@@ -164,9 +164,11 @@ const previewPromotions = async (discordIds) => {
 
 const publishPromotions = async (interaction, result, note) => {
 	for (const change of result.succès) {
+		// Profil complet rechargé pour resynchroniser le pseudo (les entrées d'aperçu n'ont pas l'identité).
+		const profile = await Personnel.getProfile(change.discordId);
 		await syncPersonnelRoles(interaction, change.discordId,
-			{ branch: change.branch, branchRankId: change.from.branchRankId, division: change.division, divisionRankId: change.from.divisionRankId },
-			{ branch: change.branch, branchRankId: change.to.branchRankId, division: change.division, divisionRankId: change.to.divisionRankId });
+			{ ...profile, branchRankId: change.from.branchRankId, divisionRankId: change.from.divisionRankId, ira: change.from.ira },
+			{ ...profile, branchRankId: change.to.branchRankId, divisionRankId: change.to.divisionRankId, ira: change.to.ira });
 	}
 	const channel = await interaction.client.channels.fetch(config.promotionChannelId).catch(async (error) => {
 		await interaction.client.log('PERSONNEL DASHBOARD', 'ERROR', `Récupération du salon de promotions ${config.promotionChannelId} impossible; auteur ${interaction.user.id}: ${error?.stack || error}`);
@@ -217,7 +219,7 @@ const renderDashboard = (state) => {
 		if (canViewDossiers(state.interaction)) actions.push(button('select-profile', '🔎 Consulter un membre'));
 		if (canViewDossiers(state.interaction)) actions.push(button('list-profiles', '📚 Tous les personnages'));
 		if (canViewDossiers(state.interaction)) actions.push(button('list-security-unregistered', '🛡️ Sécurité sans profil'));
-		if (isAdmin(state.interaction)) actions.push(button('nicknames-update', '🏷️ Mettre à jour les pseudos'));
+		if (isAdmin(state.interaction)) actions.push(button('nicknames-update', '🏷️ Mettre à jour les pseudos'), button('roles-update', '🎖️ Mettre à jour les rôles'));
 		if (isAdmin(state.interaction)) actions.push(button('create-profile', '➕ Créer', ButtonStyle.Success), button('edit-profile', '✏️ Modifier', ButtonStyle.Primary));
 		if (actions.length) components.push(row(...actions.slice(0, 5)));
 		if (actions.length > 5) components.push(row(...actions.slice(5, 10)));
@@ -245,7 +247,7 @@ const renderDashboard = (state) => {
 			{ name: 'Rang', value: draft.rankId ? rankLabel(draft.rankId) : 'Rang initial par défaut', inline: true },
 		]);
 		components.push(row(memberSelect('create-member', 'Choisir le membre')));
-		components.push(row(button('create-identity', '🪪 Identité', ButtonStyle.Secondary, !draft.discordId), button('create-branch', '🏷️ Branche', ButtonStyle.Secondary, !draft.discordId), button('create-division', '🛡️ Division', ButtonStyle.Secondary, !draft.discordId || draft.branch !== 'BG'), button('create-rank', '🎖️ Rang', ButtonStyle.Secondary, !draft.branch)));
+		components.push(row(button('create-identity', '🪪 Identité', ButtonStyle.Secondary, !draft.discordId), button('create-branch', '🏷️ Branche', ButtonStyle.Secondary, !draft.discordId), button('create-division', '🛡️ Division', ButtonStyle.Secondary, !draft.discordId || !['BG', 'EIT'].includes(draft.branch)), button('create-rank', '🎖️ Rang', ButtonStyle.Secondary, !draft.branch)));
 		components.push(row(button('create-confirm', '✅ Créer le personnage', ButtonStyle.Success, !draft.discordId || !draft.firstName || !draft.lastName || !draft.branch), button('create-cancel', 'Annuler')));
 		components.push(...backRows);
 	}
@@ -258,7 +260,7 @@ const renderDashboard = (state) => {
 		embed = state.profileEmbed || dashboardEmbed(state, '✏️ Modifier un personnage', 'Choisissez un membre à modifier.');
 		components.push(row(memberSelect('edit-member', 'Choisir un personnage')));
 		if (state.targetId) {
-			components.push(row(button('edit-identity', '🪪 Identité'), button('edit-status', '🔄 Statut'), button('edit-branch', '🏷️ Branche'), button('edit-division', '🛡️ Division', ButtonStyle.Secondary, state.profile?.branch !== 'BG'), button('edit-rank', '🎖️ Rang')));
+			components.push(row(button('edit-identity', '🪪 Identité'), button('edit-status', '🔄 Statut'), button('edit-branch', '🏷️ Branche'), button('edit-division', '🛡️ Division', ButtonStyle.Secondary, !state.profile?.branch || !['BG', 'EIT'].includes(state.profile.branch)), button('edit-rank', '🎖️ Rang')));
 			components.push(row(button('edit-sanction', '⚖️ Ajouter une sanction'), button('delete-profile', '🗑️ Supprimer', ButtonStyle.Danger)));
 		}
 		components.push(...backRows);
@@ -320,17 +322,45 @@ const renderDashboard = (state) => {
 		components.push(...backRows);
 	}
 	else if (state.page === 'sanction-add') {
-		embed = dashboardEmbed(state, '➕ Ajouter une sanction', 'Choisissez un membre, un type et indiquez le motif avant confirmation.');
+		embed = dashboardEmbed(state, '➕ Ajouter une sanction', 'Choisissez un membre, un type, saisissez le motif, puis confirmez. Le membre est notifié par MP à l’application.');
 		if (!state.targetId) {components.push(row(memberSelect('sanction-add-member', 'Membre concerné')));}
-		else {
+		else if (!state.sanctionType) {
 			components.push(row(makeSelect('sanction-type', 'Type de sanction', SANCTION_TYPES)));
-			if (state.sanctionType) components.push(row(button('sanction-add-confirm', '✍️ Saisir le motif et enregistrer', ButtonStyle.Danger)));
+		}
+		else {
+			embed.addFields(
+				{ name: 'Membre', value: `<@${state.targetId}>`, inline: true },
+				{ name: 'Type', value: state.sanctionType, inline: true },
+				{ name: 'Motif', value: state.sanctionReasonPreview || 'À saisir', inline: true },
+			);
+			if (!state.sanctionReason) components.push(row(button('sanction-add-confirm', '✍️ Saisir le motif', ButtonStyle.Primary)));
+			else components.push(row(button('sanction-add-apply', '✅ Confirmer l’application', ButtonStyle.Danger), button('sanction-add-back', '✏️ Modifier le motif')));
 		}
 		components.push(...backRows);
 	}
 	else if (state.page === 'sanction-revoke') {
-		embed = dashboardEmbed(state, '↩ Révoquer une sanction', 'La révocation nécessite le numéro du dossier et un motif. Seuls les dossiers actifs peuvent être révoqués.');
-		components.push(row(button('sanction-revoke-open', 'Saisir le dossier et le motif', ButtonStyle.Danger)));
+		embed = dashboardEmbed(state, '↩ Révoquer une sanction', 'Sélectionnez le membre, puis le dossier à révoquer dans le menu déroulant, saisissez le motif et confirmez. Le membre est notifié par MP après révocation.');
+		if (!state.targetId) {components.push(row(memberSelect('sanction-revoke-member', 'Membre dont révoquer une sanction')));}
+		else {
+			const revocable = Personnel.getSanctions(state.targetId, { includeRevoked: false, limit: 25, page: state.revokePage || 1 });
+			const options = revocable.rows.map((sanction) => ({
+				label: `#${sanction.case_number} · ${sanction.type}`, value: String(sanction.case_number),
+				description: `${sanction.reason.slice(0, 100)}`, default: Number(state.revokeCase) === sanction.case_number,
+			}));
+			if (options.length) {
+				components.push(row(makeSelect('sanction-revoke-case', 'Choisir le dossier à révoquer', options)));
+				if (revocable.totalPages > 1) components.push(row(button('revoke-prev', '◀ Précédent', ButtonStyle.Secondary, (state.revokePage || 1) <= 1), button('revoke-next', 'Suivant ▶', ButtonStyle.Secondary, (state.revokePage || 1) >= revocable.totalPages)));
+			}
+			else { embed.setDescription('Aucun dossier actif pour ce membre.'); }
+			if (state.revokeCase) {
+				embed.addFields(
+					{ name: 'Dossier', value: `#${state.revokeCase}`, inline: true },
+					{ name: 'Motif de révocation', value: state.revokeReasonPreview || 'À saisir', inline: true },
+				);
+				if (!state.revokeReason) components.push(row(button('sanction-revoke-open', '✍️ Saisir le motif', ButtonStyle.Primary)));
+				else components.push(row(button('sanction-revoke-apply', '✅ Confirmer la révocation', ButtonStyle.Danger), button('sanction-revoke-back', '✏️ Modifier le motif')));
+			}
+		}
 		components.push(...backRows);
 	}
 	else if (state.page === 'hierarchy') {
@@ -403,6 +433,25 @@ const showModal = async (component, title, fields) => {
 	const values = Object.fromEntries(fields.map((field) => [field.id, submitted.fields.getTextInputValue(field.id).trim()]));
 	await submitted.deferUpdate();
 	return values;
+};
+
+const notifySanction = async (interaction, sanction, action) => {
+	const added = action === 'added';
+	const embed = new EmbedBuilder()
+		.setColor(added ? 0xed4245 : 0x57f287)
+		.setTitle(added ? `⚖️ Sanction : ${sanction.type}` : '↩ Sanction révoquée')
+		.setDescription(added
+			? `Une sanction **${sanction.type}** vous a été infligée (dossier #${sanction.case_number}).`
+			: `Votre dossier de sanction #${sanction.case_number} a été révoqué.`)
+		.addFields(
+			{ name: added ? 'Motif' : 'Motif de révocation', value: String(added ? sanction.reason : sanction.revoke_reason).slice(0, 1024) },
+		)
+		.setTimestamp();
+	if (!added) {		embed.addFields({ name: 'Situation', value: 'Cette sanction ne compte plus comme active.' });
+	}
+	const user = await interaction.client.users.fetch(sanction.discord_id ?? sanction.discordId).catch(() => null);
+	if (!user) throw new Error('Membre introuvable.');
+	await user.send({ embeds: [embed] });
 };
 
 const currentProfile = async (state) => {
@@ -592,6 +641,11 @@ const executeDashboard = async (interaction) => {
 				});
 			}
 			if (id === 'view') {
+				if (state.view === component.values[0]) {
+					// Re-sélection de la même vue : recharge proprement la page de vue (pas une sous-page).
+					state.page = state.view;
+					state.notice = '';
+				}
 				await goToView(state, component.values[0]);
 				return renderPage(state);
 			}
@@ -602,6 +656,7 @@ const executeDashboard = async (interaction) => {
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'home') {
+				// Le menu des vues rouvre la vue actuellement sélectionnée au retour.
 				state.page = 'home';
 				state.notice = '';
 				return component.update(renderDashboard(state));
@@ -686,6 +741,7 @@ const executeDashboard = async (interaction) => {
 				else if (id === 'sanction-add-member') {
 					state.page = 'sanction-add';
 					state.sanctionType = null;
+					state.sanctionReason = null;
 				}
 				else if (id === 'demotion-member') {
 					state.page = 'demotion';
@@ -708,6 +764,27 @@ const executeDashboard = async (interaction) => {
 			if (id === 'sanction-type') {
 				if (!canManageSanctions(component)) throw new Error('La gestion des sanctions nécessite la permission personnel.sanctions.');
 				state.sanctionType = component.values[0];
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-revoke-member') {
+				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
+				state.targetId = component.values[0];
+				state.revokePage = 1;
+				state.revokeCase = null;
+				state.revokeReason = null;
+				state.backPage = 'sanctions';
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-revoke-case') {
+				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
+				state.revokeCase = component.values[0];
+				state.revokeReason = null;
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'revoke-prev' || id === 'revoke-next') {
+				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
+				state.revokePage = Math.max(1, (state.revokePage || 1) + (id === 'revoke-next' ? 1 : -1));
+				if (state.revokeCase) state.revokeCase = null;
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'create-identity' || id === 'edit-identity') {
@@ -783,7 +860,7 @@ const executeDashboard = async (interaction) => {
 					state.backPage = 'characters';
 					state.notice = 'Branche mise à jour; le rang de départ correspondant a été appliqué.';
 				}
-				else if (key === 'edit-division') {
+		else if (key === 'edit-division') {
 					if (value !== 'aucune') {
 						state.pendingDivision = value;
 						state.choice = { id: 'edit-division-rank', options: getLadder('BG', value).map(({ id: rankId, label }) => ({ label, value: rankId })), title: `Choisir le rang ${value}` };
@@ -792,7 +869,7 @@ const executeDashboard = async (interaction) => {
 						return component.update(renderDashboard(state));
 					}
 					const before = state.profile;
-					const profile = await Personnel.setDivision(state.targetId, null);
+					const profile = await Personnel.setDivision(state.targetId, null, null, { branchRankId: before.branchRankId });
 					await syncPersonnelRoles(component, state.targetId, before, profile);
 					await currentProfile(state);
 					state.page = 'edit-profile';
@@ -801,7 +878,7 @@ const executeDashboard = async (interaction) => {
 				}
 				else if (key === 'edit-division-rank') {
 					const before = state.profile;
-					const profile = await Personnel.setDivision(state.targetId, state.pendingDivision, value);
+					const profile = await Personnel.setDivision(state.targetId, state.pendingDivision, value, { branchRankId: before.branchRankId });
 					await syncPersonnelRoles(component, state.targetId, before, profile);
 					await currentProfile(state);
 					state.page = 'edit-profile';
@@ -879,6 +956,32 @@ const executeDashboard = async (interaction) => {
 				}
 				state.page = 'done';
 				state.notice = `Mise à jour des pseudos terminée : ${updated} pseudo(s) actualisé(s)${failed ? `, ${failed} échec(s) (voir les journaux)` : ''}.`;
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'roles-update') {
+				if (!isAdmin(component)) throw new Error('La mise à jour des rôles nécessite un rôle administrateur du personnel.');
+				const { rows } = Personnel.getProfiles({ limit: 25, page: 1 });
+				let updated = 0;
+				let failed = 0;
+				for (let page = 1; ; page += 1) {
+					const result = page === 1 ? { rows } : Personnel.getProfiles({ limit: 25, page });
+					if (!result.rows.length) break;
+					for (const profile of result.rows) {
+						try {
+							// previous = next force l'ajout des rôles manquants sans retirer ceux en trop (protégés ou non).
+							const sync = await syncPersonnelRoles(component, profile.discordId, null, profile);
+							if (sync.ok) updated += 1;
+							else failed += 1;
+						}
+						catch (error) {
+							failed += 1;
+							await interaction.client.log('PERSONNEL DASHBOARD', 'WARN', `Rôles non mis à jour pour <@${profile.discordId}>: ${error?.stack || error}`);
+						}
+					}
+					if (page >= result.totalPages) break;
+				}
+				state.page = 'done';
+				state.notice = `Mise à jour des rôles terminée : ${updated} membre(s) synchronisé(s)${failed ? `, ${failed} échec(s) (voir les journaux)` : ''}.`;
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'select-profile') {
@@ -1007,31 +1110,64 @@ const executeDashboard = async (interaction) => {
 			}
 			if (id === 'sanction-add-confirm') {
 				if (!canManageSanctions(component)) throw new Error('L’ajout d’une sanction nécessite la permission personnel.sanctions.');
-				const values = await showModal(component, 'Motif de sanction', [{ id: 'reason', label: 'Motif', required: true, maxLength: 1000, paragraph: true }]);
+				if (!state.targetId || !state.sanctionType) throw new Error('Choisissez d’abord un membre et un type de sanction.');
+				const values = await showModal(component, 'Motif de sanction', [{ id: 'reason', label: 'Motif', required: true, maxLength: 1000, paragraph: true, value: state.sanctionReason || undefined }]);
 				if (!values) return;
-				const sanction = await Personnel.addSanction(state.targetId, state.sanctionType, values.reason, interaction.user.id);
+				state.sanctionReason = values.reason;
+				state.sanctionReasonPreview = values.reason.slice(0, 500);
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-add-back') {
+				state.sanctionReason = null;
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-add-apply') {
+				if (!canManageSanctions(component)) throw new Error('L’ajout d’une sanction nécessite la permission personnel.sanctions.');
+				if (!state.targetId || !state.sanctionType || !state.sanctionReason) throw new Error('Complétez le membre, le type et le motif avant de confirmer.');
+				const sanction = await Personnel.addSanction(state.targetId, state.sanctionType, state.sanctionReason, interaction.user.id);
+				await notifySanction(interaction, sanction, 'added').catch((error) => {
+					interaction.client.log('PERSONNEL', 'WARN', `Notification MP de sanction impossible pour <@${state.targetId}>: ${error?.stack || error}`);
+				});
 				state.page = 'done';
+				state.sanctionType = null;
+				state.sanctionReason = null;
 				state.notice = `Sanction **${sanction.type}** ajoutée à <@${state.targetId}> · dossier #${sanction.case_number}. Motif : ${sanction.reason}`;
 				await renderPage(state);
 				return;
 			}
 			if (id === 'sanction-revoke') {
 				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
+				state.targetId = null;
+				state.revokeCase = null;
+				state.revokeReason = null;
+				state.revokePage = 1;
 				state.page = 'sanction-revoke';
 				state.backPage = 'sanctions';
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'sanction-revoke-open') {
 				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
-				const values = await showModal(component, 'Révoquer une sanction', [
-					{ id: 'case', label: 'Numéro du dossier', maxLength: 10 },
-					{ id: 'reason', label: 'Motif de révocation', maxLength: 1000, paragraph: true },
-				]);
+				if (!state.targetId || !state.revokeCase) throw new Error('Choisissez d’abord le membre et le dossier à révoquer.');
+				const values = await showModal(component, 'Motif de révocation', [{ id: 'reason', label: 'Motif', required: true, maxLength: 1000, paragraph: true, value: state.revokeReason || undefined }]);
 				if (!values) return;
-				const caseNumber = Number(values.case);
-				if (!Number.isInteger(caseNumber) || caseNumber < 1) throw new Error('Le numéro de dossier doit être un entier positif.');
-				const sanction = await Personnel.revokeSanction(caseNumber, interaction.user.id, values.reason);
+				state.revokeReason = values.reason;
+				state.revokeReasonPreview = values.reason.slice(0, 500);
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-revoke-back') {
+				state.revokeReason = null;
+				return component.update(renderDashboard(state));
+			}
+			if (id === 'sanction-revoke-apply') {
+				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
+				if (!state.targetId || !state.revokeCase || !state.revokeReason) throw new Error('Complétez le dossier et le motif avant de confirmer.');
+				const sanction = await Personnel.revokeSanction(Number(state.revokeCase), interaction.user.id, state.revokeReason);
+				await notifySanction(interaction, sanction, 'revoked').catch((error) => {
+					interaction.client.log('PERSONNEL', 'WARN', `Notification MP de révocation impossible pour <@${sanction.discord_id}>: ${error?.stack || error}`);
+				});
 				state.page = 'done';
+				state.revokeCase = null;
+				state.revokeReason = null;
 				state.notice = `Dossier #${sanction.case_number} révoqué pour <@${sanction.discord_id}>. Motif : ${sanction.revoke_reason}`;
 				await renderPage(state);
 				return;

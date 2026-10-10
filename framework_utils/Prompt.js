@@ -54,7 +54,7 @@ class Prompt {
 		}));
 	}
 
-	buildComponents() {
+	buildComponents(context = {}) {
 		const rows = [];
 		for (let i = 0; i < this.buttons.length; i += 5) {
 			rows.push(new ActionRowBuilder().addComponents(
@@ -63,18 +63,20 @@ class Prompt {
 						.setCustomId(button.customId)
 						.setLabel(button.label || 'Bouton')
 						.setStyle(button.style)
-						.setDisabled(Boolean(button.disabled)),
+						.setDisabled(typeof button.disabled === 'function'
+							? Boolean(button.disabled(context.member))
+							: Boolean(button.disabled)),
 				),
 			));
 		}
 		return rows;
 	}
 
-	buildPayload(options = {}) {
+	buildPayload(options = {}, context = {}) {
 		return {
 			...options,
 			embeds: [this.embed],
-			components: this.buildComponents(),
+			components: this.buildComponents(context),
 		};
 	}
 
@@ -122,6 +124,20 @@ class Prompt {
 				const button = this.buttons.find(({ customId }) => customId === buttonInteraction.customId);
 				if (!button?.callback) {
 					if (!buttonInteraction.replied && !buttonInteraction.deferred) await buttonInteraction.deferUpdate();
+					return;
+				}
+
+				// La désactivation par fonction peut dépendre du membre : revérifiée au clic.
+				if (typeof button.disabled === 'function' && button.disabled(buttonInteraction.member)) {
+					if (!buttonInteraction.replied && !buttonInteraction.deferred) {
+						await buttonInteraction.reply({
+							embeds: [new EmbedBuilder()
+								.setColor(0xed4245)
+								.setTitle('Action indisponible')
+								.setDescription(button.disabledMessage || 'Cette action n’est pas disponible pour vous.')],
+							flags: 64,
+						});
+					}
 					return;
 				}
 

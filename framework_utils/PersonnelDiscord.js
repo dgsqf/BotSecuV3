@@ -20,40 +20,67 @@ const getPersonnelRoleIds = (profile) => {
 	if (!profile) return [];
 	if (['DIRECTION', 'COMMISSION'].includes(profile.branch)) return [];
 	const rankRoles = config.personnelRankRoleIds || {};
+	const division = profile.division;
+	// EIT et BG peuvent avoir une division.
+	const divisionRoles = division && (profile.branch === 'BG' || profile.branch === 'EIT')
+		? [
+			...normalizeRoleIds(config.personnelDivisionRoleIds?.[division]),
+			...normalizeRoleIds(rankRoles.divisions?.[division]?.[profile.divisionRankId]),
+		]
+		: [];
+	const branchRoles = ['BG', 'EIT'].includes(profile.branch)
+		? [
+			...normalizeRoleIds(config.personnelBranchRoleIds?.[profile.branch]),
+			...normalizeRoleIds(rankRoles.branches?.[profile.branch]?.[profile.branchRankId]),
+		]
+		: [];
 	return [...new Set([
-		...normalizeRoleIds(config.personnelBranchRoleIds?.[profile.branch]),
-		...(profile.division ? normalizeRoleIds(config.personnelDivisionRoleIds?.[profile.division]) : []),
-		...normalizeRoleIds(rankRoles.branches?.[profile.branch]?.[profile.branchRankId]),
-		...(profile.division ? normalizeRoleIds(rankRoles.divisions?.[profile.division]?.[profile.divisionRankId]) : []),
+		...normalizeRoleIds(config.personnelDelimiterRoleIds),
+		...branchRoles,
+		...divisionRoles,
 		...normalizeRoleIds(config.personnelIraRoleIds?.[String(profile.ira)]),
 	])];
 };
+
+// Rôles gérés manuellement par la configuration : jamais retirés automatiquement.
+const getNeverRemovedRoleIds = () => [
+	...normalizeRoleIds(config.personnelNeverRemoveRoleIds),
+	...(config.UrgenceDivisions?.brancheGen?.roleId ? [config.UrgenceDivisions.brancheGen.roleId] : []),
+	...(config.UrgenceDivisions?.Officier?.roleIds || []),
+	...Object.values(config.personnelManualRoleGroups || {}).flatMap(normalizeRoleIds),
+];
 
 const capitalizeName = (value) => (typeof value === 'string' && value
 	? value.charAt(0).toLocaleUpperCase('fr') + value.slice(1).toLocaleLowerCase('fr')
 	: '');
 
 const getPersonnelNickname = (profile) => {
-	if (!profile) return null;
+	// Les profils partiels (promotions) n'ont pas l'identité : on ne modifie pas le pseudo.
+	if (!profile?.firstName || !profile.lastName) return null;
 	const abbreviations = config.personnelNicknameAbbreviations || {};
-	// La branche générale n'affiche pas son préfixe; seules les divisions le remplacent.
-	const rankId = profile.branchRankId;
+	// En division, le rang affiché est celui de la division; sinon c'est le rang de branche.
+	const rankId = profile.divisionRankId || profile.branchRankId;
 	const rank = abbreviations.ranks?.[rankId] || getLadder(profile.branch, profile.division).find(({ id }) => id === rankId)?.label || rankId;
+	// La branche générale n'affiche pas son préfixe; seules les divisions le remplacent.
+	const prefix = profile.division
+		? (abbreviations.divisions?.[profile.division] || profile.division)
+		: (profile.branch === 'BG' ? null : abbreviations.branches?.[profile.branch] || profile.branch);
 
-	return `${rank} ${capitalizeName(profile.firstName)} ${capitalizeName(profile.lastName)}`.slice(0, 32);
+	return `${prefix ? `${prefix} ` : ''}${rank} ${capitalizeName(profile.firstName)} ${capitalizeName(profile.lastName)}`.slice(0, 32);
 };
 
 const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextProfile) => {
 	const previousRoleIds = new Set(getPersonnelRoleIds(previousProfile));
 	const nextRoleIds = new Set(getPersonnelRoleIds(nextProfile));
+	// Rôles jamais retirés automatiquement : Sécurité, permissions d'appel, groupes manuels, permissions du dashboard.
 	const protectedRoleIds = new Set([
+		...getNeverRemovedRoleIds(),
 		...Permissions.getRoleIds('personnel.dashboard'),
 		...Permissions.getRoleIds('personnel.dossier'),
 		...Permissions.getRoleIds('personnel.activite'),
 		...Permissions.getRoleIds('personnel.sanctions'),
 		...Permissions.getRoleIds('personnel.admin'),
 		...Permissions.getRoleIds('personnel.promotion'),
-		...Object.values(config.personnelManualRoleGroups || {}).flatMap(normalizeRoleIds),
 	]);
 	const rolesToRemove = [...previousRoleIds].filter((roleId) => !nextRoleIds.has(roleId) && !protectedRoleIds.has(roleId));
 	const rolesToAdd = [...nextRoleIds].filter((roleId) => !previousRoleIds.has(roleId));

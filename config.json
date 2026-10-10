@@ -29,6 +29,7 @@
             "UMS": { "major": 1, "lieutenant": 1 }
         }
     },
+    "personnelNeverRemoveRoleIds": ["1545770783387684924", "1550077423511539782"],
     "personnelManualRoleGroups": {
         "Direction": ["1523457212293451948", "1523457385102839948"],
         "Commission de sûreté": ["1542558372807708813", "1542558420471910490"]
@@ -44,7 +45,7 @@
         }
     },
     "promotionChannelId": "1558407945572585532",
-    "sanctionTypes": ["Avertissement", "Blâme", "Suspension", "Rétrogradation", "Radiation"],
+    "sanctionTypes": ["Avertissement", "Blâme", "Suspension"],
     "activityPointsPerReport": 1,
     "personnelBranchRoleIds": {
         "EIT": ["1545806176992759850"],
@@ -57,6 +58,7 @@
         "UPR": ["1542565428960960602", "1545809732298866858", "1545809518464733296"],
         "UMS": ["1542565870444879953", "1545809716171645092", "1545809518464733296"]
     },
+    "personnelDelimiterRoleIds": ["1545809518464733296"],
     "personnelIraRoleIds": {
         "1": ["1542566165518356621", "1542566214197448816"],
         "2": ["1542566165518356621", "1542566977279758346"],

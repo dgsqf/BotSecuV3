@@ -63,6 +63,7 @@ module.exports = {
 	getNamespaces,
 	getPermission,
 	getRoleIds,
+	hasRole,
 	hasPermission,
 	isDiscordAdministrator,
 	setRoleIds,

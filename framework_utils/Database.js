@@ -19,7 +19,7 @@ const createMembersTable = (tableName, ifNotExists = false) => `
 		status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
 		created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 		updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-		CHECK ((division IS NULL AND division_rank_id IS NULL) OR (branch = 'BG' AND division IS NOT NULL AND division_rank_id IS NOT NULL))
+		CHECK ((division IS NULL AND division_rank_id IS NULL) OR (branch IN ('BG', 'EIT') AND division IS NOT NULL AND division_rank_id IS NOT NULL))
 	);
 `;
 

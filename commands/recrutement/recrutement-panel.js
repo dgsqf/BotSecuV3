@@ -9,6 +9,9 @@ const recrutement = require('./recrutement.js');
 const { recruitmentPanelChannelId } = require('../../config.json');
 const Permissions = require('../../framework_utils/Permissions.js');
 const canExecute = (interaction) => Permissions.hasPermission(interaction, 'recrutement.panel');
+const { UrgenceDivisions } = require('../../config.json');
+const SECU_ROLE_ID = UrgenceDivisions?.brancheGen?.roleId;
+const hasSecurityRole = (member) => Boolean(SECU_ROLE_ID && member?.roles?.cache?.has(SECU_ROLE_ID));
 
 const createRecruitmentPanel = () => new Prompt({
 	title: 'Recrutement - Département de la sécurité',
@@ -21,6 +24,8 @@ const createRecruitmentPanel = () => new Prompt({
 			label: 'Ouvrir le formulaire',
 			style: ButtonStyle.Primary,
 			cooldown: 600,
+			disabled: (member) => hasSecurityRole(member),
+			disabledMessage: 'Vous portez déjà le rôle Sécurité : vous ne pouvez pas candidater à nouveau.',
 			callback: (buttonInteraction) => recrutement.execute(buttonInteraction),
 		},
 	],

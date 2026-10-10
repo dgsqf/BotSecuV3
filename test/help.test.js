@@ -47,8 +47,9 @@ test('help command is registered and its home panel has Discord-compatible embed
 		reply: async (payload) => { replyPayload = payload; return message; },
 	});
 	assert.equal(replyPayload.embeds.length, 1);
-	assert.equal(replyPayload.components[0].components.length, MODULES.length);
-	assert.ok(replyPayload.components[0].components.every((item) => item.toJSON().emoji));
+	assert.ok(replyPayload.components.every((row) => row.components.length <= 5));
+	assert.equal(replyPayload.components.reduce((count, row) => count + row.components.length, 0), MODULES.length);
+	assert.ok(replyPayload.components.flatMap((row) => row.components).every((item) => item.toJSON().emoji));
 
 	let updatedPayload;
 	const component = (customId) => ({

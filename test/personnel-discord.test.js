@@ -19,8 +19,9 @@ test('personnel roles are lists and rank roles are scoped by branch and division
 		config.personnelRankRoleIds.divisions.URR.recrue = ['100000000000000007'];
 		const ulbRoles = getPersonnelRoleIds({ branch: 'BG', branchRankId: 'agent-premiere-classe', division: 'ULB', divisionRankId: 'recrue' });
 		const urrRoles = getPersonnelRoleIds({ branch: 'BG', branchRankId: 'agent-premiere-classe', division: 'URR', divisionRankId: 'recrue' });
-		assert.deepEqual(ulbRoles, ['100000000000000001', '100000000000000002', '100000000000000003', '100000000000000004', '1542563548755009647', '100000000000000006']);
-		assert.deepEqual(urrRoles, ['100000000000000001', '100000000000000002', '100000000000000005', '1542563548755009647', '100000000000000007']);
+		// Le rôle délimiteur DIV est ajouté à tous les profils de sécurité.
+		assert.deepEqual(ulbRoles, ['1545809518464733296', '100000000000000001', '100000000000000002', '1542563548755009647', '100000000000000003', '100000000000000004', '100000000000000006']);
+		assert.deepEqual(urrRoles, ['1545809518464733296', '100000000000000001', '100000000000000002', '1542563548755009647', '100000000000000005', '100000000000000007']);
 		assert.ok(!ulbRoles.includes('100000000000000005'));
 		assert.ok(!urrRoles.includes('100000000000000006'));
 	}
@@ -54,10 +55,10 @@ test('role synchronization removes old division role lists and adds the new divi
 		const interaction = {
 			guild: {
 				members: {
-				fetch: async () => ({ roles: {
-					add: async (roleIds) => { addedRoles = roleIds; },
-					remove: async (roleIds) => { removedRoles = roleIds; },
-				}, setNickname: async () => null }),
+					fetch: async () => ({ roles: {
+						add: async (roleIds) => { addedRoles = roleIds; },
+						remove: async (roleIds) => { removedRoles = roleIds; },
+					}, setNickname: async () => null }),
 				},
 			},
 			client: { log: async () => null },
@@ -92,10 +93,10 @@ test('role synchronization swaps IRA roles when a member changes IRA', async () 
 		const interaction = {
 			guild: {
 				members: {
-				fetch: async () => ({ roles: {
-					add: async (roleIds) => { addedRoles = roleIds; },
-					remove: async (roleIds) => { removedRoles = roleIds; },
-				}, setNickname: async () => null }),
+					fetch: async () => ({ roles: {
+						add: async (roleIds) => { addedRoles = roleIds; },
+						remove: async (roleIds) => { removedRoles = roleIds; },
+					}, setNickname: async () => null }),
 				},
 			},
 			client: { log: async () => null },

@@ -14,7 +14,8 @@ const { time, TimestampStyles, userMention } = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
 const Prompt = require('../../framework_utils/Prompt.js');
 const Permissions = require('../../framework_utils/Permissions.js');
-const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId } = require('../../config.json');
+const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId, UrgenceDivisions } = require('../../config.json');
+const SECU_ROLE_ID = UrgenceDivisions?.brancheGen?.roleId;
 
 const getUserReportThread = async (forumChannel, username) => {
 	const normalizedUsername = username.toLowerCase();
@@ -278,6 +279,10 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 module.exports = {
 	cooldown: 10,
 	data: new SlashCommandBuilder().setName('recrutement').setDescription('Ouvre le formulaire de recrutement pour le département de la sécurité.'),
+	canExecute: (interaction) => {
+		if (SECU_ROLE_ID && interaction.member?.roles?.cache?.has(SECU_ROLE_ID)) return false;
+		return true;
+	},
 	async restore(client) {
 		let restored = 0;
 		for (const guild of client.guilds.cache.values()) {
