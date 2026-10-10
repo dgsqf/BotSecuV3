@@ -17,7 +17,7 @@
     "personnelRankLimits": {
         "branches": {
             "EIT": { "major-eit": 1, "lieutenant-eit": 1, "capitaine-eit": 1 },
-            "BG": { "major": 1, "lieutenant": 1, "capitaine-equipes": 1 },
+            "BG": { "caporal-chef":1, "major": 1, "lieutenant": 1, "capitaine-equipes": 1 },
             "COMMANDEMENT": { "commandant-operations": 1, "chef-securite": 1 },
             "DIRECTION": { "directeur": 1, "directeur-adjoint": 1 },
             "COMMISSION": { "commissaire-conseil-surete": 1 }
@@ -43,7 +43,7 @@
             "recrue": "Rcr.", "operateur": "Op.", "agent-protection": "APR.", "responsable-equipe": "Resp-Eq.", "agent-medicale": "Agt. Med."
         }
     },
-    "promotionChannelId": "1542821056685805599",
+    "promotionChannelId": "1558407945572585532",
     "sanctionTypes": ["Avertissement", "Blâme", "Suspension", "Rétrogradation", "Radiation"],
     "activityPointsPerReport": 1,
     "personnelBranchRoleIds": {

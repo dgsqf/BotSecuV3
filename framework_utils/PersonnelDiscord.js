@@ -36,13 +36,11 @@ const capitalizeName = (value) => (typeof value === 'string' && value
 const getPersonnelNickname = (profile) => {
 	if (!profile) return null;
 	const abbreviations = config.personnelNicknameAbbreviations || {};
-	const division = profile.division ? abbreviations.divisions?.[profile.division] || profile.division : null;
 	// La branche générale n'affiche pas son préfixe; seules les divisions le remplacent.
-	const branch = profile.branch === 'BG' ? null : abbreviations.branches?.[profile.branch] || profile.branch;
-	const rankId = profile.division ? profile.divisionRankId : profile.branchRankId;
+	const rankId = profile.branchRankId;
 	const rank = abbreviations.ranks?.[rankId] || getLadder(profile.branch, profile.division).find(({ id }) => id === rankId)?.label || rankId;
-	const prefix = division || branch;
-	return `${prefix ? `${prefix} ` : ''}${rank} ${capitalizeName(profile.firstName)} ${capitalizeName(profile.lastName)}`.slice(0, 32);
+
+	return `${rank} ${capitalizeName(profile.firstName)} ${capitalizeName(profile.lastName)}`.slice(0, 32);
 };
 
 const syncPersonnelRoles = async (interaction, discordId, previousProfile, nextProfile) => {
