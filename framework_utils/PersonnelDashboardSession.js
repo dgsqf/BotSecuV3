@@ -342,10 +342,11 @@ const renderDashboard = (state) => {
 		embed = dashboardEmbed(state, '↩ Révoquer une sanction', 'Sélectionnez le membre, puis le dossier à révoquer dans le menu déroulant, saisissez le motif et confirmez. Le membre est notifié par MP après révocation.');
 		if (!state.targetId) {components.push(row(memberSelect('sanction-revoke-member', 'Membre dont révoquer une sanction')));}
 		else {
-			const revocable = Personnel.getSanctions(state.targetId, { includeRevoked: false, limit: 25, page: state.revokePage || 1 });
-			const options = revocable.rows.map((sanction) => ({
+			// La liste est préchargée par loadRevocableCases : le rendu reste synchrone.
+			const revocable = state.revocable;
+			const options = (revocable?.rows || []).map((sanction) => ({
 				label: `#${sanction.case_number} · ${sanction.type}`, value: String(sanction.case_number),
-				description: `${sanction.reason.slice(0, 100)}`, default: Number(state.revokeCase) === sanction.case_number,
+				description: `${String(sanction.reason || '').slice(0, 100)}`, default: Number(state.revokeCase) === sanction.case_number,
 			}));
 			if (options.length) {
 				components.push(row(makeSelect('sanction-revoke-case', 'Choisir le dossier à révoquer', options)));
@@ -447,7 +448,8 @@ const notifySanction = async (interaction, sanction, action) => {
 			{ name: added ? 'Motif' : 'Motif de révocation', value: String(added ? sanction.reason : sanction.revoke_reason).slice(0, 1024) },
 		)
 		.setTimestamp();
-	if (!added) {		embed.addFields({ name: 'Situation', value: 'Cette sanction ne compte plus comme active.' });
+	if (!added) {
+		embed.addFields({ name: 'Situation', value: 'Cette sanction ne compte plus comme active.' });
 	}
 	const user = await interaction.client.users.fetch(sanction.discord_id ?? sanction.discordId).catch(() => null);
 	if (!user) throw new Error('Membre introuvable.');
@@ -458,6 +460,15 @@ const currentProfile = async (state) => {
 	const profile = await Personnel.getProfile(state.targetId);
 	state.profile = profile;
 	state.profileEmbed = profile ? await profileEmbed(state.interaction, state.targetId) : null;
+};
+
+// Précharge la liste paginée des dossiers actifs pour la révocation (Personnel.getSanctions est async).
+const loadRevocableCases = async (state, page = state.revokePage || 1) => {
+	state.revokePage = Math.max(1, page);
+	state.revocable = state.targetId
+		? await Personnel.getSanctions(state.targetId, { includeRevoked: false, limit: 25, page: state.revokePage })
+		: null;
+	if (state.revokePage > (state.revocable?.totalPages || 1)) await loadRevocableCases(state, state.revocable?.totalPages || 1);
 };
 
 const openHistory = async (state, discordId) => {
@@ -603,6 +614,7 @@ const executeDashboard = async (interaction) => {
 		promotionLabels: [],
 		promotionPreview: null,
 		promotionNote: '',
+		revocable: null,
 	};
 	await interaction.reply({ ...renderDashboard(state), flags: MessageFlags.Ephemeral });
 	const message = await interaction.fetchReply();
@@ -773,6 +785,7 @@ const executeDashboard = async (interaction) => {
 				state.revokeCase = null;
 				state.revokeReason = null;
 				state.backPage = 'sanctions';
+				await loadRevocableCases(state);
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'sanction-revoke-case') {
@@ -785,6 +798,7 @@ const executeDashboard = async (interaction) => {
 				if (!canManageSanctions(component)) throw new Error('La révocation d’une sanction nécessite la permission personnel.sanctions.');
 				state.revokePage = Math.max(1, (state.revokePage || 1) + (id === 'revoke-next' ? 1 : -1));
 				if (state.revokeCase) state.revokeCase = null;
+				await loadRevocableCases(state);
 				return component.update(renderDashboard(state));
 			}
 			if (id === 'create-identity' || id === 'edit-identity') {
@@ -860,7 +874,7 @@ const executeDashboard = async (interaction) => {
 					state.backPage = 'characters';
 					state.notice = 'Branche mise à jour; le rang de départ correspondant a été appliqué.';
 				}
-		else if (key === 'edit-division') {
+				else if (key === 'edit-division') {
 					if (value !== 'aucune') {
 						state.pendingDivision = value;
 						state.choice = { id: 'edit-division-rank', options: getLadder('BG', value).map(({ id: rankId, label }) => ({ label, value: rankId })), title: `Choisir le rang ${value}` };
@@ -940,7 +954,10 @@ const executeDashboard = async (interaction) => {
 						const nickname = getPersonnelNickname(profile);
 						if (!nickname) continue;
 						const member = await fetchMember(profile.discordId);
-						if (!member) { failed += 1; continue; }
+						if (!member) {
+							failed += 1;
+							continue;
+						}
 						try {
 							if (member.nickname !== nickname) {
 								await member.setNickname(nickname, 'Mise à jour des pseudos du personnel');
@@ -1141,6 +1158,7 @@ const executeDashboard = async (interaction) => {
 				state.revokeCase = null;
 				state.revokeReason = null;
 				state.revokePage = 1;
+				state.revocable = null;
 				state.page = 'sanction-revoke';
 				state.backPage = 'sanctions';
 				return component.update(renderDashboard(state));
