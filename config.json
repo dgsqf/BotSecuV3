@@ -1,11 +1,14 @@
 {
     "recruitmentCategoryId": "1542820887953408000",
-    "recruitmentAcceptedRoleIds": ["1542566165518356621",
+    "recruitmentAcceptedRoleIds": [
+        "1542566165518356621",
         "1542566214197448816",
         "1542562596308385874",
         "1542563940259594280",
         "1545809518464733296",
-        "1545770783387684924","1553807221261996052"],
+        "1545770783387684924",
+        "1553807221261996052"
+    ],
     "recruitmentResultChannelId": "1542820491411197992",
     "rapportForumChannelId": "1548339668725137479",
     "rapportPanelChannelId": "1551998830755582104",
@@ -16,114 +19,313 @@
     "rapportReactionEmoji": "📄",
     "personnelRankLimits": {
         "branches": {
-            "EIT": { "major-eit": 1, "lieutenant-eit": 1, "capitaine-eit": 1 },
-            "BG": { "caporal-chef":1, "major": 1, "lieutenant": 1, "capitaine-equipes": 1 },
-            "COMMANDEMENT": { "commandant-operations": 1, "chef-securite": 1 },
-            "DIRECTION": { "directeur": 1, "directeur-adjoint": 1 },
-            "COMMISSION": { "commissaire-conseil-surete": 1 }
-        },
-        "divisions": {
-            "ULB": { "major": 1, "lieutenant": 1 },
-            "URR": { "major": 1, "lieutenant": 1 },
-            "UPR": { "major": 1, "lieutenant": 1 },
-            "UMS": { "major": 1, "lieutenant": 1 }
-        }
-    },
-    "personnelNeverRemoveRoleIds": ["1545770783387684924", "1550077423511539782"],
-    "personnelManualRoleGroups": {
-        "Direction": ["1523457212293451948", "1523457385102839948"],
-        "Commission de sûreté": ["1542558372807708813", "1542558420471910490"]
-    },
-    "personnelNicknameAbbreviations": {
-        "branches": { "EIT": "EIT", "BG": "BG", "COMMANDEMENT": "CMD", "DIRECTION": "DIR", "COMMISSION": "CS" },
-        "divisions": { "ULB": "ULB", "URR": "URR", "UPR": "UPR", "UMS": "UMS" },
-        "ranks": {
-            "recrue-eit": "Rec.", "operateur-eit": "Op.", "sergent-eit": "Sgt.", "adjudant-eit": "Adj.", "major-eit": "Mjr.", "lieutenant-eit": "Ltn.", "capitaine-eit": "Cpt.",
-            "agent-securite": "Agt.", "agent-premiere-classe": "A1C.", "caporal": "Cpl.", "caporal-chef": "Cpl-C.", "sergent": "Sgt.", "adjudant": "Adj", "major": "Mjr.", "lieutenant": "Ltn.", "capitaine-equipes": "Cpt.",
-            "commandant-operations": "Cmd-Op.", "chef-securite": "Cds.", "directeur-adjoint": "Dir. Adj.", "directeur": "Dir.", "officier-commission": "Ofc-Com.", "commissaire-conseil-surete": "CCS",
-            "recrue": "Rcr.", "operateur": "Op.", "agent-protection": "APR.", "responsable-equipe": "Resp-Eq.", "agent-medicale": "Agt. Med."
-        }
-    },
-    "promotionChannelId": "1558407945572585532",
-    "sanctionTypes": ["Avertissement", "Blâme", "Suspension"],
-    "activityPointsPerReport": 1,
-    "personnelBranchRoleIds": {
-        "EIT": ["1545806176992759850"],
-        "BG": ["1542562596308385874", "1545770783387684924"],
-        "COMMANDEMENT": ["1542554938855395348"]
-    },
-    "personnelDivisionRoleIds": {
-        "ULB": ["1542564253133963275", "1545809594247282808", "1545809518464733296"],
-        "URR": ["1542564407996063784", "1545809728616005724", "1545809518464733296"],
-        "UPR": ["1542565428960960602", "1545809732298866858", "1545809518464733296"],
-        "UMS": ["1542565870444879953", "1545809716171645092", "1545809518464733296"]
-    },
-    "personnelDelimiterRoleIds": ["1545809518464733296"],
-    "personnelIraRoleIds": {
-        "1": ["1542566165518356621", "1542566214197448816"],
-        "2": ["1542566165518356621", "1542566977279758346"],
-        "3": ["1542566165518356621", "1542566992060358747"],
-        "4": ["1542566165518356621", "1542567004362379347"],
-        "5": ["1542566165518356621", "1542567021055836271"],
-        "6": ["1542566165518356621", "1542567036054675567"],
-        "7": ["1542566165518356621", "1542567053708230759"]
-    },
-    "personnelRankRoleIds": {
-        "branches": {
             "EIT": {
-                "recrue-eit": ["1542563227404337203"],
-                "operateur-eit": ["1542563184681025566"],
-                "sergent-eit": ["1542563061775470674"],
-                "adjudant-eit": ["1542563060932284568"],
-                "major-eit": ["1542563017525432401"],
-                "lieutenant-eit": ["1542562922729840641"],
-                "capitaine-eit": ["1542562693481762976"]
+                "major-eit": 1,
+                "lieutenant-eit": 1,
+                "capitaine-eit": 1
             },
             "BG": {
-                "agent-securite": ["1542563940259594280"],
-                "agent-premiere-classe": ["1542563548755009647"],
-                "caporal": ["1542563528995508375"],
-                "caporal-chef": ["1542563506509975552"],
-                "sergent": ["1542563479549124638"],
-                "adjudant": ["1542563453489774644"],
-                "major": ["1542563427208273980"],
-                "lieutenant": ["1542563391208689664"],
-                "capitaine-equipes": ["1542562807810363551"]
+                "major": 1,
+                "lieutenant": 1,
+                "capitaine-equipes": 1
             },
             "COMMANDEMENT": {
-                "commandant-operations": ["1542555418126192693"],
-                "chef-securite": ["1542555036821749770"]
+                "commandant-operations": 1,
+                "chef-securite": 1
+            },
+            "DIRECTION": {
+                "directeur": 1,
+                "directeur-adjoint": 1
+            },
+            "COMMISSION": {
+                "commissaire-conseil-surete": 1
             }
         },
         "divisions": {
             "ULB": {
-                "recrue": ["1542564715010457660"],
-                "operateur": ["1542564697948028988"],
-                "sergent": ["1542564679904272464"],
-                "adjudant": ["1542564634601459752"],
-                "major": ["1542564616343789598"],
-                "lieutenant": ["1542564570919469117"]
+                "major": 1,
+                "lieutenant": 1
             },
             "URR": {
-                "recrue": ["1542565122357076008"],
-                "operateur": ["1542565097862467704"],
-                "sergent": ["1542565074965893120"],
-                "adjudant": ["1542565056422871133"],
-                "major": ["1542565030229446820"],
-                "lieutenant": ["1542565012680343572"]
+                "major": 1,
+                "lieutenant": 1
             },
             "UPR": {
-                "recrue": ["1542565659622252624"],
-                "agent-protection": ["1542565638726357062"],
-                "responsable-equipe": ["1542565617973071932"],
-                "major": ["1542565593738379344"],
-                "lieutenant": ["1542565572406157473"]
+                "major": 1,
+                "lieutenant": 1
             },
             "UMS": {
-                "recrue": ["1542566032605188106"],
-                "agent-medicale": ["1542566012803874846"],
-                "major": ["1542565995556765836"],
-                "lieutenant": ["1542565968633405461"]
+                "major": 1,
+                "lieutenant": 1
+            }
+        }
+    },
+    "personnelNeverRemoveRoleIds": [
+        "1545770783387684924",
+        "1550077423511539782"
+    ],
+    "personnelManualRoleGroups": {
+        "Direction": [
+            "1523457212293451948",
+            "1523457385102839948"
+        ],
+        "Commission de sûreté": [
+            "1542558372807708813",
+            "1542558420471910490"
+        ]
+    },
+    "personnelNicknameAbbreviations": {
+        "branches": {
+            "EIT": "EIT",
+            "BG": "BG",
+            "COMMANDEMENT": "CMD",
+            "DIRECTION": "DIR",
+            "COMMISSION": "CS"
+        },
+        "divisions": {
+            "ULB": "ULB",
+            "URR": "URR",
+            "UPR": "UPR",
+            "UMS": "UMS"
+        },
+        "ranks": {
+            "recrue-eit": "Rec.",
+            "operateur-eit": "Op.",
+            "sergent-eit": "Sgt.",
+            "adjudant-eit": "Adj.",
+            "major-eit": "Mjr.",
+            "lieutenant-eit": "Ltn.",
+            "capitaine-eit": "Cpt.",
+            "agent-securite": "Agt.",
+            "agent-premiere-classe": "A1C.",
+            "caporal": "Cpl.",
+            "caporal-chef": "Cpl-C.",
+            "sergent": "Sgt.",
+            "adjudant": "Adj",
+            "major": "Mjr.",
+            "lieutenant": "Ltn.",
+            "capitaine-equipes": "Cpt.",
+            "commandant-operations": "Cmd-Op.",
+            "chef-securite": "Cds.",
+            "directeur-adjoint": "Dir. Adj.",
+            "directeur": "Dir.",
+            "officier-commission": "Ofc-Com.",
+            "commissaire-conseil-surete": "CCS",
+            "recrue": "Rcr.",
+            "operateur": "Op.",
+            "agent-protection": "APR.",
+            "responsable-equipe": "Resp-Eq.",
+            "agent-medicale": "Agt. Med."
+        }
+    },
+    "promotionChannelId": "1558407945572585532",
+    "sanctionTypes": [
+        "Avertissement",
+        "Blâme",
+        "Suspension"
+    ],
+    "activityPointsPerReport": 1,
+    "personnelBranchRoleIds": {
+        "EIT": [
+            "1545806176992759850"
+        ],
+        "BG": [
+            "1542562596308385874",
+            "1545770783387684924"
+        ],
+        "COMMANDEMENT": [
+            "1542554938855395348"
+        ]
+    },
+    "personnelDivisionRoleIds": {
+        "ULB": [
+            "1542564253133963275",
+            "1545809594247282808",
+            "1545809518464733296"
+        ],
+        "URR": [
+            "1542564407996063784",
+            "1545809728616005724",
+            "1545809518464733296"
+        ],
+        "UPR": [
+            "1542565428960960602",
+            "1545809732298866858",
+            "1545809518464733296"
+        ],
+        "UMS": [
+            "1542565870444879953",
+            "1545809716171645092",
+            "1545809518464733296"
+        ]
+    },
+    "personnelDelimiterRoleIds": [
+        "1545809518464733296"
+    ],
+    "personnelIraRoleIds": {
+        "1": [
+            "1542566165518356621",
+            "1542566214197448816"
+        ],
+        "2": [
+            "1542566165518356621",
+            "1542566977279758346"
+        ],
+        "3": [
+            "1542566165518356621",
+            "1542566992060358747"
+        ],
+        "4": [
+            "1542566165518356621",
+            "1542567004362379347"
+        ],
+        "5": [
+            "1542566165518356621",
+            "1542567021055836271"
+        ],
+        "6": [
+            "1542566165518356621",
+            "1542567036054675567"
+        ],
+        "7": [
+            "1542566165518356621",
+            "1542567053708230759"
+        ]
+    },
+    "personnelRankRoleIds": {
+        "branches": {
+            "EIT": {
+                "recrue-eit": [
+                    "1542563227404337203"
+                ],
+                "operateur-eit": [
+                    "1542563184681025566"
+                ],
+                "sergent-eit": [
+                    "1542563061775470674"
+                ],
+                "adjudant-eit": [
+                    "1542563060932284568"
+                ],
+                "major-eit": [
+                    "1542563017525432401"
+                ],
+                "lieutenant-eit": [
+                    "1542562922729840641"
+                ],
+                "capitaine-eit": [
+                    "1542562693481762976"
+                ]
+            },
+            "BG": {
+                "agent-securite": [
+                    "1542563940259594280"
+                ],
+                "agent-premiere-classe": [
+                    "1542563548755009647"
+                ],
+                "caporal": [
+                    "1542563528995508375"
+                ],
+                "caporal-chef": [
+                    "1542563506509975552"
+                ],
+                "sergent": [
+                    "1542563479549124638"
+                ],
+                "adjudant": [
+                    "1542563453489774644"
+                ],
+                "major": [
+                    "1542563427208273980"
+                ],
+                "lieutenant": [
+                    "1542563391208689664"
+                ],
+                "capitaine-equipes": [
+                    "1542562807810363551"
+                ]
+            },
+            "COMMANDEMENT": {
+                "commandant-operations": [
+                    "1542555418126192693"
+                ],
+                "chef-securite": [
+                    "1542555036821749770"
+                ]
+            }
+        },
+        "divisions": {
+            "ULB": {
+                "recrue": [
+                    "1542564715010457660"
+                ],
+                "operateur": [
+                    "1542564697948028988"
+                ],
+                "sergent": [
+                    "1542564679904272464"
+                ],
+                "adjudant": [
+                    "1542564634601459752"
+                ],
+                "major": [
+                    "1542564616343789598"
+                ],
+                "lieutenant": [
+                    "1542564570919469117"
+                ]
+            },
+            "URR": {
+                "recrue": [
+                    "1542565122357076008"
+                ],
+                "operateur": [
+                    "1542565097862467704"
+                ],
+                "sergent": [
+                    "1542565074965893120"
+                ],
+                "adjudant": [
+                    "1542565056422871133"
+                ],
+                "major": [
+                    "1542565030229446820"
+                ],
+                "lieutenant": [
+                    "1542565012680343572"
+                ]
+            },
+            "UPR": {
+                "recrue": [
+                    "1542565659622252624"
+                ],
+                "agent-protection": [
+                    "1542565638726357062"
+                ],
+                "responsable-equipe": [
+                    "1542565617973071932"
+                ],
+                "major": [
+                    "1542565593738379344"
+                ],
+                "lieutenant": [
+                    "1542565572406157473"
+                ]
+            },
+            "UMS": {
+                "recrue": [
+                    "1542566032605188106"
+                ],
+                "agent-medicale": [
+                    "1542566012803874846"
+                ],
+                "major": [
+                    "1542565995556765836"
+                ],
+                "lieutenant": [
+                    "1542565968633405461"
+                ]
             }
         }
     },
@@ -159,116 +361,342 @@
         "test-anomalie": {
             "label": "Test Anomalie",
             "sections": [
-                { "id": "general", "label": "Informations générales", "description": "Date et lieu du test." },
-                { "id": "details", "label": "Détails de l'expérience", "description": "Décrivez l'anomalie et les besoins opérationnels." }
+                {
+                    "id": "general",
+                    "label": "Informations générales",
+                    "description": "Date et lieu du test."
+                },
+                {
+                    "id": "details",
+                    "label": "Détails de l'expérience",
+                    "description": "Décrivez l'anomalie et les besoins opérationnels."
+                }
             ],
             "fields": [
-                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
-                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
-                { "type": "text", "id": "anomalie", "label": "Anomalie", "paragraph": true, "required": true, "section": "details" },
-                { "type": "number", "id": "classeD", "label": "Nombre de Classe-D", "min": 0, "required": true, "section": "details" },
-                { "type": "number", "id": "securite", "label": "Nombre de sécurité demandé", "min": 0, "required": true, "section": "details" },
-                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "details" },
-                { "type": "boolean", "id": "besoinULB", "label": "Besoin d'ULB", "required": true, "section": "details" },
-                { "type": "boolean", "id": "besoinURR", "label": "Besoin d'URR", "required": true, "section": "details" }
+                {
+                    "type": "date",
+                    "id": "date",
+                    "label": "Date et heure",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "lieu",
+                    "label": "Lieu de rendez-vous",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "anomalie",
+                    "label": "Anomalie",
+                    "paragraph": true,
+                    "required": true,
+                    "section": "details"
+                },
+                {
+                    "type": "number",
+                    "id": "classeD",
+                    "label": "Nombre de Classe-D",
+                    "min": 0,
+                    "required": true,
+                    "section": "details"
+                },
+                {
+                    "type": "number",
+                    "id": "securite",
+                    "label": "Nombre de sécurité demandé",
+                    "min": 0,
+                    "required": true,
+                    "section": "details"
+                },
+                {
+                    "type": "text",
+                    "id": "consignes",
+                    "label": "Consignes spécifiques",
+                    "paragraph": true,
+                    "required": false,
+                    "section": "details"
+                },
+                {
+                    "type": "boolean",
+                    "id": "besoinULB",
+                    "label": "Besoin d'ULB",
+                    "required": true,
+                    "section": "details"
+                },
+                {
+                    "type": "boolean",
+                    "id": "besoinURR",
+                    "label": "Besoin d'URR",
+                    "required": true,
+                    "section": "details"
+                }
             ]
         },
         "escorte-vip": {
             "label": "Escorte VIP",
             "sections": [
-                { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'escorte." },
-                { "id": "instructions", "label": "Consignes", "description": "Informations utiles pour l'escorte." }
+                {
+                    "id": "general",
+                    "label": "Informations générales",
+                    "description": "Date et lieu de l'escorte."
+                },
+                {
+                    "id": "instructions",
+                    "label": "Consignes",
+                    "description": "Informations utiles pour l'escorte."
+                }
             ],
             "fields": [
-                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
-                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
-                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "instructions" }
+                {
+                    "type": "date",
+                    "id": "date",
+                    "label": "Date et heure",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "lieu",
+                    "label": "Lieu de rendez-vous",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "consignes",
+                    "label": "Consignes spécifiques",
+                    "paragraph": true,
+                    "required": false,
+                    "section": "instructions"
+                }
             ]
         },
         "entrainement": {
             "label": "Entrainement",
             "sections": [
-                { "id": "general", "label": "Informations générales", "description": "Date et lieu de l'entraînement." },
-                { "id": "programme", "label": "Programme", "description": "Décrivez le contenu de l'entraînement." }
+                {
+                    "id": "general",
+                    "label": "Informations générales",
+                    "description": "Date et lieu de l'entraînement."
+                },
+                {
+                    "id": "programme",
+                    "label": "Programme",
+                    "description": "Décrivez le contenu de l'entraînement."
+                }
             ],
             "fields": [
-                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
-                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
-                { "type": "text", "id": "description", "label": "Description", "paragraph": true, "required": true, "section": "programme" },
-                { "type": "choice", "id": "division", "label": "Division", "choices": ["ULB", "URR", "UPR", "UMS", "EIT", "Toute la sécurité"], "required": true, "section": "programme" }
+                {
+                    "type": "date",
+                    "id": "date",
+                    "label": "Date et heure",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "lieu",
+                    "label": "Lieu de rendez-vous",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "description",
+                    "label": "Description",
+                    "paragraph": true,
+                    "required": true,
+                    "section": "programme"
+                },
+                {
+                    "type": "choice",
+                    "id": "division",
+                    "label": "Division",
+                    "choices": [
+                        "ULB",
+                        "URR",
+                        "UPR",
+                        "UMS",
+                        "EIT",
+                        "Toute la sécurité"
+                    ],
+                    "required": true,
+                    "section": "programme"
+                }
             ]
         },
         "selection": {
             "label": "Sélection",
             "sections": [
-                { "id": "general", "label": "Informations générales", "description": "Date et lieu de la sélection." },
-                { "id": "instructions", "label": "Consignes", "description": "Consignes et division concernée." }
+                {
+                    "id": "general",
+                    "label": "Informations générales",
+                    "description": "Date et lieu de la sélection."
+                },
+                {
+                    "id": "instructions",
+                    "label": "Consignes",
+                    "description": "Consignes et division concernée."
+                }
             ],
             "fields": [
-                { "type": "date", "id": "date", "label": "Date et heure", "required": true, "section": "general" },
-                { "type": "text", "id": "lieu", "label": "Lieu de rendez-vous", "required": true, "section": "general" },
-                { "type": "text", "id": "consignes", "label": "Consignes spécifiques", "paragraph": true, "required": false, "section": "instructions" },
-                { "type": "choice", "id": "division", "label": "Division", "choices": ["ULB", "URR", "UPR", "UMS", "EIT"], "required": true, "section": "instructions" }
+                {
+                    "type": "date",
+                    "id": "date",
+                    "label": "Date et heure",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "lieu",
+                    "label": "Lieu de rendez-vous",
+                    "required": true,
+                    "section": "general"
+                },
+                {
+                    "type": "text",
+                    "id": "consignes",
+                    "label": "Consignes spécifiques",
+                    "paragraph": true,
+                    "required": false,
+                    "section": "instructions"
+                },
+                {
+                    "type": "choice",
+                    "id": "division",
+                    "label": "Division",
+                    "choices": [
+                        "ULB",
+                        "URR",
+                        "UPR",
+                        "UMS",
+                        "EIT"
+                    ],
+                    "required": true,
+                    "section": "instructions"
+                }
             ]
         }
     },
-    "SalonsUrgences" : {
-        "brancheGen" : "1542821659566940211",
-        "EIT" : "1542823891913805895",
-        "ULB" : "1542825344984416256",
-        "UPR" : "1542826077271892009",
-        "URR" : "1542826041628688414",
-        "UMS" : "1542826101666226226",
-        "Officier" : "1550078500512202794"
+    "SalonsUrgences": {
+        "brancheGen": "1542821659566940211",
+        "EIT": "1542823891913805895",
+        "ULB": "1542825344984416256",
+        "UPR": "1542826077271892009",
+        "URR": "1542826041628688414",
+        "UMS": "1542826101666226226",
+        "Officier": "1550078500512202794"
     },
     "UrgenceDivisions": {
-        "brancheGen": { "channelId": "1542821659566940211", "roleId": "1545770783387684924" },
-        "EIT": { "channelId": "1542823891913805895", "roleId": "1545806176992759850" },
-        "ULB": { "channelId": "1542825344984416256", "roleId": "1545809594247282808" },
-        "UPR": { "channelId": "1542826077271892009", "roleId": "1545809732298866858" },
-        "URR": { "channelId": "1542826041628688414", "roleId": "1545809728616005724" },
-        "UMS": { "channelId": "1542826101666226226", "roleId": "1545809716171645092" },
-        "Officier": { "channelId": "1550078500512202794", "roleIds": ["1542567004362379347", "1542567021055836271","1542567036054675567","1542567053708230759","1542836944457703454"] }
+        "brancheGen": {
+            "channelId": "1542821659566940211",
+            "roleId": "1545770783387684924"
+        },
+        "EIT": {
+            "channelId": "1542823891913805895",
+            "roleId": "1545806176992759850"
+        },
+        "ULB": {
+            "channelId": "1542825344984416256",
+            "roleId": "1545809594247282808"
+        },
+        "UPR": {
+            "channelId": "1542826077271892009",
+            "roleId": "1545809732298866858"
+        },
+        "URR": {
+            "channelId": "1542826041628688414",
+            "roleId": "1545809728616005724"
+        },
+        "UMS": {
+            "channelId": "1542826101666226226",
+            "roleId": "1545809716171645092"
+        },
+        "Officier": {
+            "channelId": "1550078500512202794",
+            "roleIds": [
+                "1542567004362379347",
+                "1542567021055836271",
+                "1542567036054675567",
+                "1542567053708230759",
+                "1542836944457703454"
+            ]
+        }
     },
     "UrgenceTypes": {
         "prise-otage": {
             "label": "Prise d'otage",
-            "divisions": ["EIT", "brancheGen"],
+            "divisions": [
+                "EIT",
+                "brancheGen"
+            ],
             "fields": []
         },
         "incident-biologique": {
             "label": "Incident biologique",
-            "divisions": ["ULB"],
+            "divisions": [
+                "ULB"
+            ],
             "fields": []
         },
         "breche-confinement": {
             "label": "Brèche de confinement",
-            "divisions": ["URR"],
-            "fields": [{ "id": "anomalies", "label": "Anomalies hors confinement", "placeholder": "Listez les anomalies concernées" }]
+            "divisions": [
+                "URR"
+            ],
+            "fields": [
+                {
+                    "id": "anomalies",
+                    "label": "Anomalies hors confinement",
+                    "placeholder": "Listez les anomalies concernées"
+                }
+            ]
         },
         "emeute-classe-d": {
             "label": "Émeute de Classe-D",
-            "divisions": ["brancheGen", "EIT"],
+            "divisions": [
+                "brancheGen",
+                "EIT"
+            ],
             "fields": []
         },
         "raid-hostile": {
             "label": "RAID hostile",
-            "divisions": ["brancheGen", "EIT"],
-            "fields": [{ "id": "groupe-interet", "label": "Groupe d'intérêt", "placeholder": "Indiquez le groupe d'intérêt" }]
+            "divisions": [
+                "brancheGen",
+                "EIT"
+            ],
+            "fields": [
+                {
+                    "id": "groupe-interet",
+                    "label": "Groupe d'intérêt",
+                    "placeholder": "Indiquez le groupe d'intérêt"
+                }
+            ]
         },
         "demande-protection": {
             "label": "Demande de protection",
-            "divisions": ["UPR"],
+            "divisions": [
+                "UPR"
+            ],
             "fields": []
         },
         "medecin-combat": {
             "label": "Appel médecin de combat",
-            "divisions": ["UMS"],
+            "divisions": [
+                "UMS"
+            ],
             "fields": []
         },
         "appel-officier": {
             "label": "Appel officier",
-            "divisions": ["Officier"],
+            "divisions": [
+                "Officier"
+            ],
             "fields": []
         }
     }
