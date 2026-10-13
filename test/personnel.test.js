@@ -247,6 +247,60 @@ test('deleting a profile leaves its Discord roles untouched', async () => {
 	assert.equal(memberFetchCount, 0, 'deleting a database profile must not fetch the member or modify Discord roles');
 });
 
+test('previewPromotion keeps the division title below a skipped equivalent and catches up later', async () => {
+	await addProfile('ums-plateau', 'BG', 'recrue', 'UMS');
+	await personnel.setRank('ums-plateau', 'agent-medicale');
+	const plateau = await personnel.previewPromotion('ums-plateau');
+	assert.equal(plateau.to.branchRankId, 'caporal-chef');
+	assert.equal(plateau.to.divisionRankId, 'agent-medicale');
+	assert.equal(plateau.to.label, 'Agent médical');
+	assert.equal(plateau.iraChanged, false);
+
+	await personnel.setRank('ums-plateau', 'adjudant');
+	const held = await personnel.getProfile('ums-plateau');
+	assert.equal(held.branchRankId, 'adjudant');
+	assert.equal(held.divisionRankId, 'agent-medicale');
+	assert.equal(held.ira, 3);
+
+	const caughtUp = await personnel.previewPromotion('ums-plateau');
+	assert.equal(caughtUp.to.branchRankId, 'major');
+	assert.equal(caughtUp.to.divisionRankId, 'major');
+	assert.equal(caughtUp.to.ira, 4);
+});
+
+test('previewPromotion stops UMS members below ladders summit rank', async () => {
+	await addProfile('ums-summit', 'BG', 'recrue', 'UMS');
+	await personnel.setRank('ums-summit', 'lieutenant');
+	const before = await personnel.getProfile('ums-summit');
+	assert.equal(before.branchRankId, 'lieutenant');
+	const summit = await personnel.previewPromotion('ums-summit');
+	assert.equal(summit.ok, false);
+	assert.match(summit.reason, /dépasse le sommet de l'échelle de la division UMS/);
+});
+
+test('ApplyPromotions keeps division title while advancing branch rank', async () => {
+	await addProfile('ums-agent', 'BG', 'recrue', 'UMS');
+	await personnel.setRank('ums-agent', 'agent-medicale');
+	const result = await personnel.applyPromotions(
+		{ log: async () => null },
+		'issuer',
+		[{ discordId: 'ums-agent' }],
+	);
+	assert.equal(result.succès.length, 1);
+	const profile = await personnel.getProfile('ums-agent');
+	assert.equal(profile.branchRankId, 'caporal-chef');
+	assert.equal(profile.divisionRankId, 'agent-medicale');
+	assert.equal(profile.ira, 2);
+});
+
+test('previewPromotion advances an EIT member with a division title', async () => {
+	await addProfile('eit-division', 'EIT', 'recrue', 'ULB');
+	const preview = await personnel.previewPromotion('eit-division');
+	assert.equal(preview.to.branchRankId, 'sergent-eit');
+	assert.equal(preview.to.divisionRankId, 'operateur');
+	assert.equal(preview.to.ira, 3);
+});
+
 test('previewPromotion advances EIT and BG members by one rank', async () => {
 	await addProfile('eit', 'EIT', 'operateur-eit');
 	const eit = await personnel.previewPromotion('eit');
@@ -263,11 +317,14 @@ test('previewPromotion advances EIT and BG members by one rank', async () => {
 	assert.equal(bg.iraChanged, false);
 });
 
-test('previewPromotion follows each BG division ladder and its BG mapping', async () => {
+test('previewPromotion advances the branch rank and unlocks the matching division title', async () => {
+	// L'échelle de branche avance (agent de première classe -> caporal) ; le titre de division
+	// n'avance que si son équivalent BG est atteint. Agent de protection (UPR) est l'équivalent
+	// de caporal-chef : il reste inaccessible au palier caporal.
 	const expected = {
 		ULB: ['operateur', 'caporal', 2],
 		URR: ['operateur', 'caporal', 2],
-		UPR: ['agent-protection', 'caporal-chef', 2],
+		UPR: ['recrue', 'caporal', 2],
 		UMS: ['agent-medicale', 'caporal', 2],
 	};
 	for (const [index, [division, [divisionRankId, branchRankId, ira]]] of Object.entries(expected).entries()) {

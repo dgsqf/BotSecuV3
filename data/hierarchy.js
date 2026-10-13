@@ -97,7 +97,57 @@ const getNextRank = (ladder, currentRankId) => {
 
 const mapDivisionRankToBg = (divisionRankId) => divisionToBgRank[divisionRankId] || null;
 
+// Équivalence branche → division : titre de division équivalent à un rang de branche.
+// Pour BG, on suit la table de correspondance divisionToBgRank : le titre est le rang de division
+// dont l'équivalent BG est atteint dans l'échelle de branche (le plus haut possible). Lorsqu'aucun
+// rang de division n'est équivalent au palier franchi (ex. UMS entre Caporal et Major), le titre
+// reste au rang en dessous.
+// Pour EIT, le rang de branche appartient à l'échelle EIT ; la direction décide du mouvement :
+// « up » (vague de promotion) fait avancer le titre d'un cran de l'échelle de division s'il ne
+// dépasse pas l'IRA du palier de branche ; « down » (rétrogradation) redescend au titre le plus
+// proche en dessous ; « sync » (réglage manuel) prend le titre le plus haut ≤ à l'IRA du palier.
+const getDivisionTitleForBranchRankId = (branchRankId, division, branch = 'BG', currentDivisionRankId = null, direction = 'sync') => {
+	const divisionLadder = divisionLadders[division];
+	if (!Array.isArray(divisionLadder)) return null;
+	const branchRank = ladders[branch]?.find((rank) => rank.id === branchRankId);
+	if (!branchRank) return null;
+	if (branch !== 'BG') {
+		const currentIndex = divisionLadder.findIndex((rank) => rank.id === currentDivisionRankId);
+		if (direction === 'up') {
+			if (currentIndex >= divisionLadder.length - 1) return null;
+			const candidate = divisionLadder[Math.max(currentIndex + 1, 0)];
+			return candidate.ira <= branchRank.ira ? candidate : null;
+		}
+		if (direction === 'down') {
+			for (let index = Math.max(currentIndex, divisionLadder.length - 1); index >= 0; index -= 1) {
+				if (divisionLadder[index].ira <= branchRank.ira) return divisionLadder[index];
+			}
+			return divisionLadder[0];
+		}
+		const eligible = divisionLadder.filter((rank) => rank.ira <= branchRank.ira);
+		return eligible[eligible.length - 1] || null;
+	}
+	const branchIndex = ladders.BG.findIndex((rank) => rank.id === branchRankId);
+	if (branchIndex < 0) return null;
+	let best = null;
+	for (const rank of divisionLadder) {
+		const mapped = ladders.BG.find((entry) => entry.id === divisionToBgRank[rank.id]);
+		if (!mapped) continue;
+		const mappedIndex = ladders.BG.indexOf(mapped);
+		// Le titre ne peut ni dépasser le niveau du rang de branche (index) ni dépasser son IRA :
+		// un palier sans équivalent laisse le titre au rang en dessous.
+		if (mappedIndex >= 0 && mappedIndex <= branchIndex && mapped.ira <= branchRank.ira) best = rank;
+	}
+	return best;
+};
+
 const computeIra = ({ branch, branchRankId, division = null, divisionRankId = null } = {}) => {
+	// L'IRA suit la hiérarchie de branche, même si le titre de division reste en dessous
+	// (palier sans équivalent dans la division).
+	const ladder = getLadder(branch) || [];
+	const branchRank = ladder.find((rank) => rank.id === branchRankId);
+	if (branchRank) return branchRank.ira;
+
 	if (branch === 'BG' && division) {
 		if (!divisionLadders[division]) throw new Error(`Division invalide : ${division}.`);
 		const divisionRank = divisionLadders[division].find((rank) => rank.id === divisionRankId);
@@ -105,9 +155,7 @@ const computeIra = ({ branch, branchRankId, division = null, divisionRankId = nu
 		return divisionRank.ira;
 	}
 
-	const branchRank = getLadder(branch).find((rank) => rank.id === branchRankId);
-	if (!branchRank) throw new Error(`Rang invalide pour la branche ${branch || 'non renseignée'} : ${branchRankId || 'non renseigné'}.`);
-	return branchRank.ira;
+	throw new Error(`Rang invalide pour la branche ${branch || 'non renseignée'} : ${branchRankId || 'non renseigné'}.`);
 };
 
 module.exports = {
@@ -115,5 +163,6 @@ module.exports = {
 	getRank,
 	getNextRank,
 	mapDivisionRankToBg,
+	getDivisionTitleForBranchRankId,
 	computeIra,
 };

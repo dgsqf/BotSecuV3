@@ -5,6 +5,7 @@ const {
 	getRank,
 	getNextRank,
 	mapDivisionRankToBg,
+	getDivisionTitleForBranchRankId,
 	computeIra,
 } = require('../data/hierarchy.js');
 
@@ -102,8 +103,8 @@ const resolveProfileRank = ({ branch, division = null, rankId, branchRankId = nu
 		if (branch === 'EIT') {
 			const eitRankId = branchRankId ?? 'operateur-eit';
 			if (!getLadder('EIT').some((rank) => rank.id === eitRankId)) throw new Error('Rang EIT invalide.');
-			// L'IRA d'une division BG est basé sur le rang de division.
-			return { branchRankId: eitRankId, division, divisionRankId, ira: computeIra({ branch: 'BG', division, divisionRankId, branchRankId: mappedRankId || 'agent-premiere-classe' }) };
+			// L'IRA d'un membre EIT suit l'échelle EIT, même s'il porte un titre de division.
+			return { branchRankId: eitRankId, division, divisionRankId, ira: computeIra({ branch: 'EIT', branchRankId: eitRankId }) };
 		}
 		if (!mappedRankId) throw new Error('Aucune correspondance BG n’est définie pour ce rang de division.');
 		return { branchRankId: mappedRankId, division, divisionRankId, ira: computeIra({ branch, branchRankId: mappedRankId, division, divisionRankId }) };
@@ -125,13 +126,23 @@ const getRankLimit = (branch, division, rankId) => {
 	return limit;
 };
 
+// Effectif d'un rang de branche : toute la branche, divisons comprises (un membre en division
+// porte aussi un rang de branche depuis la réforme de promotion). Effectif d'un rang de division :
+// limité à la division.
 const getRankOccupancy = (db, branch, division, rankId) => {
-	const rankColumn = division ? 'division_rank_id' : 'branch_rank_id';
+	if (division) {
+		const result = db.prepare(`
+			SELECT COUNT(*) AS count
+			FROM members
+			WHERE branch = ? AND division IS ? AND division_rank_id = ? AND status = 'active'
+		`).get(branch, division, rankId);
+		return result.count;
+	}
 	const result = db.prepare(`
 		SELECT COUNT(*) AS count
 		FROM members
-		WHERE branch = ? AND division IS ? AND ${rankColumn} = ? AND status = 'active'
-	`).get(branch, division || null, rankId);
+		WHERE branch = ? AND branch_rank_id = ? AND status = 'active'
+	`).get(branch, rankId);
 	return result.count;
 };
 
@@ -141,8 +152,10 @@ const assertRankCapacity = (db, branch, division, rankId, excludingDiscordId = n
 	const occupancy = getRankOccupancy(db, branch, division, rankId)
 		- (excludingDiscordId && db.prepare(`
 			SELECT COUNT(*) AS count FROM members
-			WHERE discord_id = ? AND branch = ? AND division IS ? AND ${division ? 'division_rank_id' : 'branch_rank_id'} = ? AND status = 'active'
-		`).get(excludingDiscordId, branch, division || null, rankId).count ? 1 : 0);
+			WHERE discord_id = ? AND branch = ? AND ${division ? 'division IS ? AND division_rank_id' : 'branch_rank_id'} = ? AND status = 'active'
+		`).get(...(division
+			? [excludingDiscordId, branch, division, rankId]
+			: [excludingDiscordId, branch, rankId])).count ? 1 : 0);
 	if (occupancy >= limit) {
 		const rank = getLadder(branch, division).find((entry) => entry.id === rankId);
 		throw new Error(`Le rang « ${rank?.label || rankId} » est complet (${occupancy}/${limit} membres actifs).`);
@@ -150,13 +163,21 @@ const assertRankCapacity = (db, branch, division, rankId, excludingDiscordId = n
 };
 
 const getRankCounts = async (branch, division = null) => {
-	const rankColumn = division ? 'division_rank_id' : 'branch_rank_id';
-	const rows = getDatabase().prepare(`
-		SELECT ${rankColumn} AS rankId, COUNT(*) AS count
-		FROM members
-		WHERE branch = ? AND division IS ? AND status = 'active'
-		GROUP BY ${rankColumn}
-	`).all(branch, division || null);
+	// Même sémantique que getRankOccupancy : échelle de branche vue sur toute la branche,
+	// échelle de division vue sur la division seule.
+	const rows = division
+		? getDatabase().prepare(`
+			SELECT division_rank_id AS rankId, COUNT(*) AS count
+			FROM members
+			WHERE branch = ? AND division IS ? AND status = 'active'
+			GROUP BY division_rank_id
+		`).all(branch, division)
+		: getDatabase().prepare(`
+			SELECT branch_rank_id AS rankId, COUNT(*) AS count
+			FROM members
+			WHERE branch = ? AND status = 'active'
+			GROUP BY branch_rank_id
+		`).all(branch);
 	return Object.fromEntries(rows.map(({ rankId, count }) => [rankId, count]));
 };
 
@@ -235,7 +256,8 @@ const setDivision = async (discordId, division, rankId, { branchRankId = null } 
 		? (branchRankId || profile.branchRankId)
 		: mapDivisionRankToBg(divisionRankId);
 	if (!effectiveBranchRankId) throw new Error('Aucune correspondance de rang n’est définie pour ce rang de division.');
-	const ira = computeIra({ branch: 'BG', branchRankId: mapDivisionRankToBg(divisionRankId) || 'agent-premiere-classe', division, divisionRankId });
+	// L'IRA suit l'échelle de branche : EIT pour un membre EIT, rang BG équivalent pour BG.
+	const ira = computeIra({ branch: profile.branch, branchRankId: effectiveBranchRankId });
 	const db = getDatabase();
 	db.transaction(() => {
 		assertRankCapacity(db, profile.branch, division, divisionRankId, discordId);
@@ -407,24 +429,50 @@ const revokeSanction = async (caseNumber, revokerId, reason) => {
 
 const rankLabel = (rankId) => getRank(rankId)?.label || rankId;
 
+// L'échelle de branche (BG ou EIT) pilote la promotion rang par rang. Pour un membre en division, le
+// titre de division n'avance que si un rang équivalent existe dans sa division au niveau du palier
+// franchi ; sinon il reste au rang en dessous. Le sommet de la division (lieutenant) reste inaccessible
+// en division : passer capitaine suppose de d'abord quitter la division.
 const buildPromotion = (profile, targetRankId) => {
 	if (profile.branch === 'COMMANDEMENT') return { ok: false, reason: 'Le COMMANDEMENT ne peut pas être promu par ce flux.' };
-	const ladder = getLadder(profile.branch, profile.division);
-	const fromRankId = profile.division ? profile.divisionRankId : profile.branchRankId;
-	const nextRank = getNextRank(ladder, fromRankId);
-	if (!nextRank) return { ok: false, reason: 'Le membre est déjà au sommet de son échelle.' };
-	if (targetRankId && targetRankId !== nextRank.id) return { ok: false, reason: 'La promotion doit viser le rang immédiatement supérieur.' };
-	const nextRankLimit = getRankLimit(profile.branch, profile.division, nextRank.id);
-	if (nextRankLimit != null && getRankOccupancy(getDatabase(), profile.branch, profile.division, nextRank.id) >= nextRankLimit) {
-		return { ok: false, reason: `Le rang « ${nextRank.label} » est complet (${getRankOccupancy(getDatabase(), profile.branch, profile.division, nextRank.id)}/${nextRankLimit} membres actifs).` };
+	const branchLadder = getLadder(profile.branch);
+	let fromBranchRankId = profile.branchRankId;
+	// Anciennes données : le rang de branche d'un membre BG en division était le miroir du titre.
+	if (profile.division && !branchLadder.some((rank) => rank.id === fromBranchRankId)) {
+		fromBranchRankId = mapDivisionRankToBg(profile.divisionRankId) || fromBranchRankId;
 	}
-	const nextBranchRankId = profile.division ? mapDivisionRankToBg(nextRank.id) : nextRank.id;
-	if (!nextBranchRankId) return { ok: false, reason: 'Aucune correspondance BG n’est définie pour le rang suivant.' };
+	const nextRank = getNextRank(branchLadder, fromBranchRankId);
+	if (!nextRank) return { ok: false, reason: 'Le membre est déjà au sommet de son échelle.' };
+	const nextTitle = profile.division ? getDivisionTitleForBranchRankId(nextRank.id, profile.division, profile.branch, profile.divisionRankId, 'up') : null;
+	if (targetRankId && targetRankId !== nextRank.id && targetRankId !== nextTitle?.id) {
+		return { ok: false, reason: 'La promotion doit viser le rang immédiatement supérieur ou son titre équivalent.' };
+	}
+	const divisionLadder = profile.division ? getLadder('BG', profile.division) : null;
+	const divisionCeiling = divisionLadder?.[divisionLadder.length - 1]?.ira;
+	if (profile.division && divisionCeiling != null && nextRank.ira > divisionCeiling) {
+		return { ok: false, reason: `Le rang « ${nextRank.label} » dépasse le sommet de l'échelle de la division ${profile.division} ; quittez la division pour être promu.` };
+	}
+	let divisionRankId = profile.division ? profile.divisionRankId : null;
+	if (nextTitle && nextTitle.id !== profile.divisionRankId) divisionRankId = nextTitle.id;
+	// Plafonds : échelle de branche (membres sans division) et, si le titre avance, échelle de division.
+	const branchLimit = getRankLimit(profile.branch, null, nextRank.id);
+	const branchOccupancy = branchLimit == null ? null : getRankOccupancy(getDatabase(), profile.branch, null, nextRank.id);
+	if (branchOccupancy != null && branchOccupancy >= branchLimit) {
+		return { ok: false, reason: `Le rang « ${nextRank.label} » est complet (${branchOccupancy}/${branchLimit} membres actifs).` };
+	}
+	const titleRank = divisionRankId && divisionLadder?.find((rank) => rank.id === divisionRankId);
+	if (divisionRankId !== (profile.division ? profile.divisionRankId : null) && titleRank) {
+		const divisionLimit = getRankLimit(profile.branch, profile.division, titleRank.id);
+		const divisionOccupancy = divisionLimit == null ? null : getRankOccupancy(getDatabase(), profile.branch, profile.division, titleRank.id);
+		if (divisionOccupancy != null && divisionOccupancy >= divisionLimit) {
+			return { ok: false, reason: `Le rang « ${titleRank.label} » est complet (${divisionOccupancy}/${divisionLimit} membres actifs).` };
+		}
+	}
 	const ira = computeIra({
 		branch: profile.branch,
-		branchRankId: nextBranchRankId,
+		branchRankId: nextRank.id,
 		division: profile.division,
-		divisionRankId: profile.division ? nextRank.id : null,
+		divisionRankId,
 	});
 	return {
 		ok: true,
@@ -435,9 +483,9 @@ const buildPromotion = (profile, targetRankId) => {
 			ira: profile.ira,
 		},
 		to: {
-			branchRankId: nextBranchRankId,
-			divisionRankId: profile.division ? nextRank.id : null,
-			label: nextRank.label,
+			branchRankId: nextRank.id,
+			divisionRankId,
+			label: profile.division ? rankLabel(divisionRankId) : nextRank.label,
 			ira,
 		},
 		iraChanged: ira !== profile.ira,
@@ -482,8 +530,10 @@ const applyPromotions = async (client, issuerId, candidates, note = '') => {
 			}
 			const db = getDatabase();
 			const result = db.transaction(() => {
-				const targetRankId = profile.division ? promotion.to.divisionRankId : promotion.to.branchRankId;
-				assertRankCapacity(db, profile.branch, profile.division, targetRankId, discordId);
+				assertRankCapacity(db, profile.branch, null, promotion.to.branchRankId, discordId);
+				if (promotion.to.divisionRankId && promotion.to.divisionRankId !== profile.divisionRankId) {
+					assertRankCapacity(db, profile.branch, profile.division, promotion.to.divisionRankId, discordId);
+				}
 				return db.prepare(`
 					UPDATE members
 					SET branch_rank_id = ?, division_rank_id = ?, ira = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
@@ -525,19 +575,28 @@ const applyPromotions = async (client, issuerId, candidates, note = '') => {
 const setRank = async (discordId, rankId) => {
 	const profile = await getProfile(discordId);
 	if (!profile) throw new Error('Aucun profil n’existe pour ce membre.');
-	const rank = getLadder(profile.branch, profile.division).find((entry) => entry.id === rankId);
-	if (!rank) throw new Error('Ce rang n’appartient pas à la branche ou division du membre.');
-	const branchRankId = profile.division ? mapDivisionRankToBg(rankId) : rankId;
-	if (!branchRankId) throw new Error('Aucune correspondance BG n’est définie pour ce rang.');
-	const divisionRankId = profile.division ? rankId : null;
-	const ira = computeIra({ branch: profile.branch, branchRankId, division: profile.division, divisionRankId });
+	// rankId peut être un rang de branche ou un titre de division : on résout le palier de branche.
+	const titleRank = profile.division ? getLadder('BG', profile.division).find((entry) => entry.id === rankId) || null : null;
+	const branchLadder = getLadder(profile.branch);
+	const branchRank = branchLadder.find((entry) => entry.id === rankId)
+		|| (titleRank ? branchLadder.find((entry) => getDivisionTitleForBranchRankId(entry.id, profile.division, profile.branch, profile.divisionRankId)?.id === titleRank.id) : null);
+	if (!branchRank) throw new Error('Ce rang n’appartient pas à la branche ou division du membre.');
+	let divisionRankId = profile.division ? profile.divisionRankId : null;
+	if (profile.division) {
+		const title = titleRank || getDivisionTitleForBranchRankId(branchRank.id, profile.division, profile.branch, profile.divisionRankId);
+		divisionRankId = title ? title.id : null;
+	}
+	const ira = computeIra({ branch: profile.branch, branchRankId: branchRank.id, division: profile.division, divisionRankId });
 	const db = getDatabase();
 	db.transaction(() => {
-		assertRankCapacity(db, profile.branch, profile.division, rankId, discordId);
+		assertRankCapacity(db, profile.branch, null, branchRank.id, discordId);
+		if (divisionRankId && divisionRankId !== profile.divisionRankId) {
+			assertRankCapacity(db, profile.branch, profile.division, divisionRankId, discordId);
+		}
 		const result = db.prepare(`
 			UPDATE members SET branch_rank_id = ?, division_rank_id = ?, ira = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 			WHERE discord_id = ? AND branch_rank_id = ? AND division IS ? AND division_rank_id IS ?
-		`).run(branchRankId, divisionRankId, ira, discordId, profile.branchRankId, profile.division, profile.divisionRankId);
+		`).run(branchRank.id, divisionRankId, ira, discordId, profile.branchRankId, profile.division, profile.divisionRankId);
 		if (!result.changes) throw new Error('Le rang a changé pendant la modification; recommencez.');
 	})();
 	return getProfile(discordId);
@@ -546,24 +605,32 @@ const setRank = async (discordId, rankId) => {
 const demoteMember = async (discordId) => {
 	const profile = await getProfile(discordId);
 	if (!profile) throw new Error('Aucun profil n’existe pour ce membre.');
-	const ladder = getLadder(profile.branch, profile.division);
-	const currentRankId = profile.division ? profile.divisionRankId : profile.branchRankId;
-	const currentIndex = ladder.findIndex((rank) => rank.id === currentRankId);
+	// Symétrique de la promotion : l'échelle de branche descend, le titre de division retombe
+	// au rang équivalent le plus haut ≤ l'IRA du palier de branche (ou en dessous s'il n'existe pas).
+	const branchLadder = getLadder(profile.branch);
+	const currentIndex = branchLadder.findIndex((rank) => rank.id === profile.branchRankId);
 	if (currentIndex <= 0) throw new Error('Le membre est déjà au plus bas de son échelle.');
-	const previousRank = ladder[currentIndex - 1];
-	const branchRankId = profile.division ? mapDivisionRankToBg(previousRank.id) : previousRank.id;
-	const divisionRankId = profile.division ? previousRank.id : null;
-	const ira = computeIra({ branch: profile.branch, branchRankId, division: profile.division, divisionRankId });
+	const previousRank = branchLadder[currentIndex - 1];
+	let divisionRankId = profile.division ? profile.divisionRankId : null;
+	const divisionLadder = profile.division ? getLadder('BG', profile.division) : null;
+	if (profile.division && divisionLadder) {
+		const previousTitle = getDivisionTitleForBranchRankId(previousRank.id, profile.division, profile.branch, profile.divisionRankId, 'down');
+		divisionRankId = previousTitle ? previousTitle.id : divisionLadder[0].id;
+	}
+	const ira = computeIra({ branch: profile.branch, branchRankId: previousRank.id, division: profile.division, divisionRankId });
 	const db = getDatabase();
 	db.transaction(() => {
-		assertRankCapacity(db, profile.branch, profile.division, previousRank.id, discordId);
+		assertRankCapacity(db, profile.branch, null, previousRank.id, discordId);
+		if (divisionRankId && divisionRankId !== profile.divisionRankId) {
+			assertRankCapacity(db, profile.branch, profile.division, divisionRankId, discordId);
+		}
 		const result = db.prepare(`
 			UPDATE members SET branch_rank_id = ?, division_rank_id = ?, ira = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 			WHERE discord_id = ? AND branch_rank_id = ? AND division IS ? AND division_rank_id IS ?
-		`).run(branchRankId, divisionRankId, ira, discordId, profile.branchRankId, profile.division, profile.divisionRankId);
+		`).run(previousRank.id, divisionRankId, ira, discordId, profile.branchRankId, profile.division, profile.divisionRankId);
 		if (!result.changes) throw new Error('Le rang a changé pendant la rétrogradation; recommencez.');
 	})();
-	return { from: currentRankId, to: previousRank.id, iraChanged: ira !== profile.ira, profile: await getProfile(discordId) };
+	return { from: profile.division ? profile.divisionRankId : profile.branchRankId, to: profile.division ? divisionRankId : previousRank.id, iraChanged: ira !== profile.ira, profile: await getProfile(discordId) };
 };
 
 module.exports = {

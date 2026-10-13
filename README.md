@@ -87,6 +87,8 @@ Le modèle de profils couvre EIT, BG, COMMANDEMENT, DIRECTION et COMMISSION, ain
 
 Les plafonds de `personnelRankLimits` sont appliqués aux créations, réactivations, changements de rang/branche/division, rétrogradations et promotions. Seuls les profils actifs occupent une place. Les postes du Commandement, les capitaines, les majors et les lieutenants ont chacun une limite de 1 par échelle; les postes de Direction et de Commission déjà configurés sont également plafonnés à 1. Les limites des divisions sont indépendantes entre ULB, URR, UPR et UMS. Les autres rangs restent illimités tant qu’aucun plafond n’est ajouté. `/hierarchie` affiche une branche ou division par page et indique l’effectif courant des rangs limités.
 
+Les promotions se font toujours dans l’échelle de branche (BG ou EIT), rang par rang. Pour un membre en division, le titre de division progresse avec l’équivalent prévu dans `divisionToBgRank` (table de correspondance rang de division → rang BG) : s’il n’existe pas de titre équivalent au palier franchi, il reste au rang en dessous. Exemple : un Agent médical UMS promu devient Caporal-chef (rôle de branche) tout en restant Agent médical (titre de division et rôles de rang de division inchangés). Chaque palier de branche donne aussi l’IRA correspondant, même si le titre reste en dessous. Passer Capitaine suppose ensuite de quitter la division : le rang de branche de la division reste toujours en dessous de son sommet (lieutenant).
+
 ### 6. Déployer les commandes et lancer
 
 Déployez les commandes sur le serveur indiqué par `GUILD_ID`, puis démarrez le bot :

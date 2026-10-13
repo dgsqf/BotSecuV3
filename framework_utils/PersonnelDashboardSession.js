@@ -143,15 +143,23 @@ const previewPromotions = async (discordIds) => {
 		const profile = await Personnel.getProfile(discordId);
 		let result = await Personnel.previewPromotion(discordId);
 		if (profile && result.ok) {
-			const targetRankId = profile.division ? result.to.divisionRankId : result.to.branchRankId;
-			const limit = Personnel.getRankLimit(profile.branch, profile.division, targetRankId);
-			if (limit != null) {
-				const scale = `${profile.branch}:${profile.division || ''}`;
-				if (!countsByScale.has(scale)) countsByScale.set(scale, await Personnel.getRankCounts(profile.branch, profile.division));
-				const slot = `${scale}:${targetRankId}`;
-				const occupancy = (countsByScale.get(scale)[targetRankId] || 0) + (reserved.get(slot) || 0);
-				if (occupancy >= limit) result = { ok: false, reason: `Le rang « ${result.to.label} » est complet (${occupancy}/${limit}).` };
-				else reserved.set(slot, (reserved.get(slot) || 0) + 1);
+			// Le rang de branche avance toujours ; le titre de division seulement s'il change.
+			const targets = [{ branch: profile.branch, division: null, rankId: result.to.branchRankId }];
+			if (profile.division && result.to.divisionRankId !== profile.divisionRankId) {
+				targets.push({ branch: profile.branch, division: profile.division, rankId: result.to.divisionRankId });
+			}
+			for (const target of targets) {
+				const limit = Personnel.getRankLimit(target.branch, target.division, target.rankId);
+				if (limit == null) continue;
+				const scale = `${target.branch}:${target.division || ''}`;
+				if (!countsByScale.has(scale)) countsByScale.set(scale, await Personnel.getRankCounts(target.branch, target.division));
+				const slot = `${scale}:${target.rankId}`;
+				const occupancy = (countsByScale.get(scale)[target.rankId] || 0) + (reserved.get(slot) || 0);
+				if (occupancy >= limit) {
+					result = { ok: false, reason: `Le rang « ${result.to.label} » est complet (${occupancy}/${limit}).` };
+					break;
+				}
+				reserved.set(slot, (reserved.get(slot) || 0) + 1);
 			}
 		}
 		entries.push({ discordId, profile, result, label: profile ? `${profile.firstName} ${profile.lastName}` : discordId });
