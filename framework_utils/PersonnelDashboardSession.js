@@ -144,7 +144,8 @@ const previewPromotions = async (discordIds) => {
 		let result = await Personnel.previewPromotion(discordId);
 		if (profile && result.ok) {
 			// Le rang de branche avance toujours ; le titre de division seulement s'il change.
-			const targets = [{ branch: profile.branch, division: null, rankId: result.to.branchRankId }];
+			// Un membre en division n'occupe pas le poste de branche correspondant.
+			const targets = profile.division ? [] : [{ branch: profile.branch, division: null, rankId: result.to.branchRankId }];
 			if (profile.division && result.to.divisionRankId !== profile.divisionRankId) {
 				targets.push({ branch: profile.branch, division: profile.division, rankId: result.to.divisionRankId });
 			}

@@ -126,9 +126,9 @@ const getRankLimit = (branch, division, rankId) => {
 	return limit;
 };
 
-// Effectif d'un rang de branche : toute la branche, divisons comprises (un membre en division
-// porte aussi un rang de branche depuis la réforme de promotion). Effectif d'un rang de division :
-// limité à la division.
+// Effectif d'un rang de branche : profils hors division seulement (les postes de branche,
+// comme Major ou Lieutenant de branche, sont réservés aux membres sans division).
+// Effectif d'un rang de division : limité à la division.
 const getRankOccupancy = (db, branch, division, rankId) => {
 	if (division) {
 		const result = db.prepare(`
@@ -141,7 +141,7 @@ const getRankOccupancy = (db, branch, division, rankId) => {
 	const result = db.prepare(`
 		SELECT COUNT(*) AS count
 		FROM members
-		WHERE branch = ? AND branch_rank_id = ? AND status = 'active'
+		WHERE branch = ? AND division IS NULL AND branch_rank_id = ? AND status = 'active'
 	`).get(branch, rankId);
 	return result.count;
 };
@@ -152,7 +152,7 @@ const assertRankCapacity = (db, branch, division, rankId, excludingDiscordId = n
 	const occupancy = getRankOccupancy(db, branch, division, rankId)
 		- (excludingDiscordId && db.prepare(`
 			SELECT COUNT(*) AS count FROM members
-			WHERE discord_id = ? AND branch = ? AND ${division ? 'division IS ? AND division_rank_id' : 'branch_rank_id'} = ? AND status = 'active'
+			WHERE discord_id = ? AND branch = ? AND ${division ? 'division IS ? AND division_rank_id' : 'division IS NULL AND branch_rank_id'} = ? AND status = 'active'
 		`).get(...(division
 			? [excludingDiscordId, branch, division, rankId]
 			: [excludingDiscordId, branch, rankId])).count ? 1 : 0);
@@ -163,7 +163,7 @@ const assertRankCapacity = (db, branch, division, rankId, excludingDiscordId = n
 };
 
 const getRankCounts = async (branch, division = null) => {
-	// Même sémantique que getRankOccupancy : échelle de branche vue sur toute la branche,
+	// Même sémantique que getRankOccupancy : échelle de branche vue sur les profils hors division,
 	// échelle de division vue sur la division seule.
 	const rows = division
 		? getDatabase().prepare(`
@@ -175,7 +175,7 @@ const getRankCounts = async (branch, division = null) => {
 		: getDatabase().prepare(`
 			SELECT branch_rank_id AS rankId, COUNT(*) AS count
 			FROM members
-			WHERE branch = ? AND status = 'active'
+			WHERE branch = ? AND division IS NULL AND status = 'active'
 			GROUP BY branch_rank_id
 		`).all(branch);
 	return Object.fromEntries(rows.map(({ rankId, count }) => [rankId, count]));
@@ -454,11 +454,14 @@ const buildPromotion = (profile, targetRankId) => {
 	}
 	let divisionRankId = profile.division ? profile.divisionRankId : null;
 	if (nextTitle && nextTitle.id !== profile.divisionRankId) divisionRankId = nextTitle.id;
-	// Plafonds : échelle de branche (membres sans division) et, si le titre avance, échelle de division.
-	const branchLimit = getRankLimit(profile.branch, null, nextRank.id);
-	const branchOccupancy = branchLimit == null ? null : getRankOccupancy(getDatabase(), profile.branch, null, nextRank.id);
-	if (branchOccupancy != null && branchOccupancy >= branchLimit) {
-		return { ok: false, reason: `Le rang « ${nextRank.label} » est complet (${branchOccupancy}/${branchLimit} membres actifs).` };
+	// Plafonds : le poste de branche n'est occupé que par un membre sans division (les divisions ont
+	// leur propre plafond, vérifié si le titre avance).
+	if (!profile.division) {
+		const branchLimit = getRankLimit(profile.branch, null, nextRank.id);
+		const branchOccupancy = branchLimit == null ? null : getRankOccupancy(getDatabase(), profile.branch, null, nextRank.id);
+		if (branchOccupancy != null && branchOccupancy >= branchLimit) {
+			return { ok: false, reason: `Le rang « ${nextRank.label} » est complet (${branchOccupancy}/${branchLimit} membres actifs).` };
+		}
 	}
 	const titleRank = divisionRankId && divisionLadder?.find((rank) => rank.id === divisionRankId);
 	if (divisionRankId !== (profile.division ? profile.divisionRankId : null) && titleRank) {
@@ -530,7 +533,9 @@ const applyPromotions = async (client, issuerId, candidates, note = '') => {
 			}
 			const db = getDatabase();
 			const result = db.transaction(() => {
-				assertRankCapacity(db, profile.branch, null, promotion.to.branchRankId, discordId);
+				if (!profile.division) {
+					assertRankCapacity(db, profile.branch, null, promotion.to.branchRankId, discordId);
+				}
 				if (promotion.to.divisionRankId && promotion.to.divisionRankId !== profile.divisionRankId) {
 					assertRankCapacity(db, profile.branch, profile.division, promotion.to.divisionRankId, discordId);
 				}
@@ -589,7 +594,9 @@ const setRank = async (discordId, rankId) => {
 	const ira = computeIra({ branch: profile.branch, branchRankId: branchRank.id, division: profile.division, divisionRankId });
 	const db = getDatabase();
 	db.transaction(() => {
-		assertRankCapacity(db, profile.branch, null, branchRank.id, discordId);
+		if (!profile.division) {
+			assertRankCapacity(db, profile.branch, null, branchRank.id, discordId);
+		}
 		if (divisionRankId && divisionRankId !== profile.divisionRankId) {
 			assertRankCapacity(db, profile.branch, profile.division, divisionRankId, discordId);
 		}
@@ -620,7 +627,9 @@ const demoteMember = async (discordId) => {
 	const ira = computeIra({ branch: profile.branch, branchRankId: previousRank.id, division: profile.division, divisionRankId });
 	const db = getDatabase();
 	db.transaction(() => {
-		assertRankCapacity(db, profile.branch, null, previousRank.id, discordId);
+		if (!profile.division) {
+			assertRankCapacity(db, profile.branch, null, previousRank.id, discordId);
+		}
 		if (divisionRankId && divisionRankId !== profile.divisionRankId) {
 			assertRankCapacity(db, profile.branch, profile.division, divisionRankId, discordId);
 		}

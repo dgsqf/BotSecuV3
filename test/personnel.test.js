@@ -474,6 +474,33 @@ test('rank capacity blocks promotions, manual rank changes, branch changes, and 
 	}
 });
 
+test('branch rank caps count only members without a division, and division caps stay per division', async () => {
+	const originalLimits = structuredClone(config.personnelRankLimits);
+	try {
+		config.personnelRankLimits.branches.BG.major = 1;
+		// Un Major de branche BG (sans division) occupe le poste de branche : le second candidat est bloqué.
+		await addProfile('bg-major-branch', 'BG', 'major');
+		await addProfile('bg-candidate', 'BG', 'adjudant');
+		assert.equal((await personnel.previewPromotion('bg-candidate')).ok, false);
+		await assert.rejects(() => personnel.setRank('bg-candidate', 'major'), /est complet \(1\/1 membres actifs\)/);
+
+		// Un Major de division n'occupe pas le poste de branche : il coexiste avec le Major de branche.
+		await addProfile('ulb-major-division', 'BG', 'major', 'ULB');
+		const branchCounts = await personnel.getRankCounts('BG');
+		assert.equal(branchCounts.major, 1);
+		const divisionCounts = await personnel.getRankCounts('BG', 'ULB');
+		assert.equal(divisionCounts.major, 1);
+		// La place de Major de la division ULB est prise : un second profil est refusé.
+		await assert.rejects(
+			() => addProfile('ulb-major-2', 'BG', 'major', 'ULB'),
+			/est complet \(1\/1 membres actifs\)/,
+		);
+	}
+	finally {
+		config.personnelRankLimits = originalLimits;
+	}
+});
+
 test('previewPromotion rejects summit ranks and ranks other than the next step', async () => {
 	await addProfile('summit', 'EIT', 'capitaine-eit');
 	assert.deepEqual(await personnel.previewPromotion('summit'), { ok: false, reason: 'Le membre est déjà au sommet de son échelle.' });
