@@ -500,7 +500,8 @@ const loadLeaderboard = async (state) => {
 	const result = await Personnel.getLeaderboard({ type: state.activityType, period: state.activityPeriod, page: state.activityPage, limit: 10 });
 	const lines = result.rows.map((entry, index) => {
 		const position = (state.activityPage - 1) * result.limit + index + 1;
-		const amount = state.activityType === 'points' ? `${entry.amount} points` : `${entry.amount.toFixed(2)} h`;
+		// getLeaderboard convertit les minutes stockées en heures décimales; formatDuration attend des minutes entières.
+		const amount = state.activityType === 'points' ? `${entry.amount} points` : formatDuration(Math.round(entry.amount * 60));
 		return `**${position}.** <@${entry.discordId}> · ${amount}`;
 	});
 	const period = { all: 'Depuis le début', week: '7 derniers jours', month: '30 derniers jours' }[state.activityPeriod];
