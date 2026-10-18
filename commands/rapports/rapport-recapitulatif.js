@@ -23,6 +23,16 @@ const REPORT_TYPE_ORDER = [
 
 const canExecute = (interaction) => Permissions.hasPermission(interaction, 'rapports.recapitulatif');
 
+// Les détails d'un rapport sont publiés dans le fil juste après son message d'embed, en un ou
+// plusieurs messages commençant par cet en-tête (voir commands/rapports/rapports.js).
+const DETAILS_BODY_HEADER = '## 🧾 Détails du rapport';
+const DETAILS_HEADER_PATTERN = /^## 🧾 Détails du rapport(?: \(suite \d+\/\d+\))?\n\n?/;
+
+const isDetailMessage = (message) =>
+	typeof message.content === 'string' && message.content.startsWith(DETAILS_BODY_HEADER);
+
+const stripDetailHeader = (content) => content.replace(DETAILS_HEADER_PATTERN, '').trim();
+
 const subtractPeriod = (date, period) => {
 	const start = new Date(date);
 	if (period.days) {
@@ -90,6 +100,7 @@ const getReportEntries = (message) => (message.embeds || []).flatMap((embed) => 
 		discordUsername: submittedBy?.[1] ?? null,
 		discordUserId: submittedBy?.[2] ?? null,
 		fields: (embed.fields || []).filter((field) => field.name !== 'Type' && field.name !== 'Date'),
+		details: [],
 		url: message.url,
 	}];
 });
@@ -114,10 +125,23 @@ const collectReports = async (forumChannel, startTimestamp, endTimestamp) => {
 
 	const reports = [];
 	for (const thread of threads.values()) {
-		const messages = await getThreadMessages(thread);
+		// Les messages de détails suivent immédiatement leur rapport dans le thread : on lit le fil
+		// dans l'ordre chronologique et on rattache chaque message de détails au dernier rapport vu.
+		const messages = [...await getThreadMessages(thread)].sort((left, right) => left.createdTimestamp - right.createdTimestamp);
+		const threadReports = [];
+		let lastReport = null;
 		for (const message of messages) {
-			if (message.createdTimestamp < startTimestamp || message.createdTimestamp > endTimestamp) continue;
-			reports.push(...getReportEntries(message));
+			const entries = getReportEntries(message);
+			if (entries.length) {
+				lastReport = entries[entries.length - 1];
+				threadReports.push(...entries);
+				continue;
+			}
+			if (isDetailMessage(message) && lastReport) lastReport.details.push(stripDetailHeader(message.content));
+		}
+		for (const report of threadReports) {
+			if (report.submittedTimestamp < startTimestamp || report.submittedTimestamp > endTimestamp) continue;
+			reports.push(report);
 		}
 	}
 	return reports.sort(compareReports);
@@ -196,6 +220,10 @@ const renderMarkdown = (reports, period, start, end, generatedAt, profileCorresp
 				for (const field of report.fields) {
 					lines.push(`**${field.name}**`, '', field.value, '');
 				}
+				if (report.details?.length) {
+					// La découpe en messages conserve les sauts de ligne : la concaténation restitue le texte d'origine.
+					lines.push('**Détails**', '', report.details.join(''), '');
+				}
 			}
 		}
 	}
@@ -259,6 +287,8 @@ module.exports = {
 		});
 	},
 	collectReports,
+	isDetailMessage,
+	stripDetailHeader,
 	getProfileCorrespondences,
 	getReportEntries,
 	parseReportDate,

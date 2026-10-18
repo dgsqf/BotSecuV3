@@ -117,6 +117,94 @@ test('an empty period produces a valid Markdown summary', () => {
 	assert.match(markdown, /Aucun rapport n’a été publié/);
 });
 
+test('detail messages are split at 2000 characters with continuation headers restored losslessly', () => {
+	const rapports = require('../commands/rapports/rapports.js');
+	// 3000 caractères ; 2000 caractères/message, marge incluse pour l'en-tête de reprise.
+	const longText = 'ligne\n'.repeat(500);
+	const messages = rapports.buildDetailMessages(longText);
+	assert.equal(messages.length, 2);
+	for (const message of messages) {
+		assert.ok(message.content.length <= 2000);
+		assert.match(message.content, /^## 🧾 Détails du rapport/);
+	}
+	assert.doesNotMatch(messages[0].content, /suite/);
+	assert.match(messages[1].content, /^## 🧾 Détails du rapport \(suite 2\/2\)/);
+
+	// Reconstitution fidèle (la découpe conserve les sauts de ligne), comme le fait /rapport-recapitulatif
+	const reassembled = messages
+		.map((message) => message.content.replace(/^## 🧾 Détails du rapport(?: \(suite \d+\/\d+\))?\n\n/, ''))
+		.join('');
+	assert.equal(reassembled, longText.trim());
+});
+
+test('a very long single-section detail is hard-split into compliant messages', () => {
+	const rapports = require('../commands/rapports/rapports.js');
+	const messages = rapports.buildDetailMessages('a'.repeat(5000));
+	assert.equal(messages.length, 3);
+	for (const message of messages) assert.ok(message.content.length <= 2000);
+});
+
+test('collectReports attaches detail messages to the preceding report and ignores threads without reports', async () => {
+	const makeReport = (id, createdTimestamp, extraFields) => ({
+		id,
+		createdTimestamp,
+		url: `https://discord.com/channels/guild/thread/${id}`,
+		embeds: [{
+			title: '📄 Rapport d’incident',
+			description: 'Soumis par Agent Exemple (123456789012345678)',
+			fields: [{ name: 'Type', value: 'Rapport d’incident' }, { name: 'Date', value: '<t:1700000000:f>' }, ...extraFields],
+		}],
+	});
+	const detailsMessageSuffix = ' (suite 2/2)\n\n### Détail complet de l’incident\nDeuxième bloc';
+	const messages = [
+		makeReport('report', 1_700_000_025_000, []),
+		{ id: 'details-1', createdTimestamp: 1_700_000_026_000, content: '## 🧾 Détails du rapport\n\n### Personnel notable présent\nAgent A' },
+		{ id: 'details-2', createdTimestamp: 1_700_000_027_000, content: `## 🧾 Détails du rapport${detailsMessageSuffix}` },
+		{ id: 'chat', createdTimestamp: 1_700_000_028_000, content: 'Discussion classique dans le fil, ce ne sont pas des détails.' },
+	];
+	const thread = { id: 'thread', messages: { fetch: async () => new Map(messages.map((message) => [message.id, message])) } };
+	const forum = { threads: { fetchActive: async () => ({ threads: new Map([[thread.id, thread]]) }), fetchArchived: async () => ({ threads: new Map() }) } };
+
+	const [report] = await recapitulatif.collectReports(forum, 1_700_000_000_000, 1_700_000_100_000);
+	assert.deepEqual(report.details, [
+		'### Personnel notable présent\nAgent A',
+		'### Détail complet de l’incident\nDeuxième bloc',
+	]);
+});
+
+test('renderMarkdown includes merged report details after the other fields', () => {
+	const markdown = recapitulatif.renderMarkdown([
+		{
+			type: 'Rapport d’incident',
+			title: 'Rapport d’incident',
+			reportDate: { timestamp: Date.parse('2025-01-02T08:00:00.000Z'), label: '2025-01-02' },
+			submittedTimestamp: Date.parse('2025-01-02T08:05:00.000Z'),
+			author: 'Agent A',
+			fields: [{ name: 'Lieu', value: 'Secteur 2' }],
+			details: ['### Personnel notable présent\nAgent A', '### Détail complet de l’incident\nLong récit'],
+		},
+	],
+	{ label: 'Les 7 derniers jours' },
+	new Date('2025-01-01T00:00:00.000Z'),
+	new Date('2025-01-08T00:00:00.000Z'),
+	new Date('2025-01-08T00:00:00.000Z'),
+	[]);
+	assert.match(markdown, /\*\*Lieu\*\*/);
+	assert.match(markdown, /\*\*Détails\*\*[\s\S]*### Personnel notable présent[\s\S]*Long récit/);
+	// les en-têtes de reprise ne doivent pas rester dans le récapitulatif
+	assert.doesNotMatch(markdown, /Détails du rapport \(suite/);
+});
+
+test('recapitulatif detail constants match the report command', () => {
+	// Le marqueur exact produit par /rapport doit être reconnu par /rapport-recapitulatif.
+	const rapports = require('../commands/rapports/rapports.js');
+	assert.equal(recapitulatif.isDetailMessage({ content: `${rapports.DETAILS_BODY_HEADER} (suite 2/3)\n\ntexte` }), true);
+	assert.equal(recapitulatif.stripDetailHeader(`${rapports.DETAILS_BODY_HEADER} (suite 2/3)\n\ntexte`), 'texte');
+	assert.equal(recapitulatif.isDetailMessage({ content: '## 🧾 Détails du rapport (suite 2/3)\n\ntexte' }), true);
+	assert.equal(recapitulatif.isDetailMessage({ content: '## 🧾 Détails du rapport\ntexte' }), true);
+	assert.equal(recapitulatif.isDetailMessage({ content: 'Message normal' }), false);
+});
+
 test('collectReports searches active and archived threads and filters by publication date', async () => {
 	const makeReportMessage = (id, createdTimestamp, reportDate) => ({
 		id,

@@ -199,6 +199,23 @@ class Form {
 		return `${text.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
 	}
 
+	/** Tronque une valeur affichée dans l'aperçu : une saisie longue (jusqu'à 4000 caractères)
+	 * peut dépasser la limite de description d'embed de Discord (4096 caractères) et faire planter _embed. */
+	_truncateDisplayValue(value, maxLength = 500) {
+		const text = String(value ?? '');
+		if (text.length <= maxLength) return text;
+		return `${text.slice(0, Math.max(1, maxLength - 1))}\n… (tronqué, ${text.length} caractères au total)`;
+	}
+
+	/** Valeur à préremplir dans un modal de ré-édition : la réponse complète telle qu'enregistrée
+	 * (jamais la version tronquée de l'aperçu), bornée à la limite du champ (max Discord : 4000)
+	 * pour que setMaxLength n'échoue pas à la validation. */
+	_textInputPrefill(storedValue, limit = 4000) {
+		const text = String(storedValue ?? '');
+		if (!text) return null;
+		return text.slice(0, limit);
+	}
+
 	_capitalizeLabel(label) {
 		const text = String(label ?? '').replace(/\s+/g, ' ').trim();
 		return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text;
@@ -208,7 +225,7 @@ class Form {
 		const currentFields = page?.fields || [];
 		const fieldsSummary = currentFields.map((field) => {
 			const currentValue = values[field.id];
-			const displayValue = this._formatValue(currentValue);
+			const displayValue = this._truncateDisplayValue(this._formatValue(currentValue));
 			return `### ${this._capitalizeLabel(field.label)}\n${displayValue}`;
 		}).join('\n\n');
 
@@ -220,8 +237,8 @@ class Form {
 		})() : null;
 		const description = [this.description || '\u200b', sectionLine, fieldsSummary || '\u200b'].filter(Boolean).join('\n\n');
 
-		return new EmbedBuilder().setColor(this.color).setTitle(this.title)
-			.setDescription(description)
+		return new EmbedBuilder().setColor(this.color).setTitle(this.title.slice(0, 256))
+			.setDescription(description.length <= 4096 ? description : `${description.slice(0, 4090).trimEnd()}…`)
 			.setFooter({ text: total > 1 ? `Page ${index + 1}/${total}` : 'Formulaire' });
 	}
 
@@ -405,19 +422,27 @@ class Form {
 					}
 
 					if (field.type === 'text' || field.type === 'number' || field.type === 'question') {
+						// Limite du champ : maxLength optionnel du formulaire, borné à la limite Discord (4000).
+						const maxLength = field.maxLength != null
+							? Math.min(Number(field.maxLength), 4000)
+							: null;
 						const modal = new ModalBuilder().setCustomId(i.customId).setTitle(field.label.slice(0, 45));
 						const textInput = new TextInputBuilder()
 							.setCustomId('value')
-							.setPlaceholder(field.placeholder || field.label)
+							.setPlaceholder(String(field.placeholder || field.label).slice(0, 100))
 							.setStyle(field.paragraph ? TextInputStyle.Paragraph : TextInputStyle.Short)
 							.setRequired(field.required !== false);
+						if (maxLength != null) textInput.setMaxLength(maxLength);
 						const label = new LabelBuilder();
 						label.setLabel('Répondez à la question :');
-						label.setDescription(field.label);
+						label.setDescription(String(field.label).slice(0, 100));
 						label.setTextInputComponent(textInput);
-						const currentTextValue = String(state.values[field.id] ?? '');
-						if (currentTextValue.length > 0) textInput.setValue(currentTextValue.slice(0, 4000));
-						if (field.type === 'number') {
+						// Préremplissage de la ré-édition : la réponse complète enregistrée est restituée dans le modal
+						// (l'aperçu, lui, affiche une version tronquée) ; champs bornés préfillent dans leur limite.
+						const isNumberField = field.type === 'number';
+						const textValuePrefill = this._textInputPrefill(state.values[field.id], isNumberField ? 20 : (maxLength ?? 4000));
+						if (textValuePrefill != null) textInput.setValue(textValuePrefill);
+						if (isNumberField) {
 							textInput.setPlaceholder(`Nombre${field.min != null ? ` >= ${field.min}` : ''}${field.max != null ? ` <= ${field.max}` : ''}`);
 							textInput.setMinLength(1);
 							textInput.setMaxLength(20);

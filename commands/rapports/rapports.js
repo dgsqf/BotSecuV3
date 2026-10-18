@@ -29,6 +29,67 @@ const getUserThread = async (forumChannel, username) => {
 	return threadCollection.find((thread) => thread?.name?.toLowerCase() === username.toLowerCase()) ?? null;
 };
 
+// Le contenu de la section « Détails » des rapports n'est plus inclus dans l'embed : les valeurs des
+// champs d'embed sont limitées à 1024 caractères par Discord (et 4000 pour les champs de formulaire),
+// ce qui faisait planter l'envoi pour un rapport trop long. Le contenu détaillé est envoyé dans le corps
+// du thread, en messages Markdown, découpés à 2000 caractères si nécessaire.
+const MAX_FIELD_VALUE_LENGTH = 1024;
+const DETAILS_BODY_HEADER = '## 🧾 Détails du rapport';
+// 2000 caractères/message, marge incluse pour l'en-tête de reprise.
+const DETAILS_PART_LIMIT = 1920;
+
+// Découpe un texte en blocs de taille fixe en privilégiant les coupures à la ligne ; la
+// concaténation des blocs restitue exactement le texte d'origine.
+const splitDetailsBody = (text, limit = DETAILS_PART_LIMIT) => {
+	if (text.length <= limit) return [text];
+	const parts = [];
+	let remaining = text;
+	while (remaining.length > limit) {
+		let cutIndex = remaining.lastIndexOf('\n', limit - 1);
+		if (cutIndex <= 0 || cutIndex < limit / 2) cutIndex = limit - 1;
+		parts.push(remaining.slice(0, cutIndex + 1));
+		remaining = remaining.slice(cutIndex + 1);
+	}
+	if (remaining) parts.push(remaining);
+	return parts;
+};
+
+// Transforme le contenu détaillé en liste de messages, chacun identifié par l'en-tête partagé
+// (utilisé par /rapport-recapitulatif pour rattacher les détails au bon rapport).
+const buildDetailMessages = (content) => {
+	const trimmed = content?.trim();
+	if (!trimmed) return [];
+	const parts = splitDetailsBody(trimmed);
+	const total = parts.length;
+	return parts.map((part, index) => ({
+		content: DETAILS_BODY_HEADER
+			+ (index > 0 ? ` (suite ${index + 1}/${total})` : '')
+			+ `\n\n${part}`,
+	}));
+};
+
+// Sections de détails liées au type de rapport ; toutes lues par la commande /rapport-recapitulatif.
+const buildDetailSections = (reportType, reportData) => {
+	switch (reportType) {
+	case 'incident':
+		return [
+			{ title: 'Personnel notable présent', value: String(reportData.personnel) },
+			{ title: 'Détail complet de l\'incident', value: String(reportData.detail ?? 'Non renseigné') },
+		];
+	case 'prise-service':
+		return [
+			{ title: 'Incident éventuel', value: String(reportData.incident || 'Aucun') },
+			{ title: 'Activités suspectes', value: String(reportData.activites_suspectes || 'Aucune') },
+		];
+	case 'experience':
+		return [{ title: 'Observations', value: String(reportData.observations) }];
+	case 'personnel':
+		return [{ title: 'Détails de l\'incident', value: String(reportData.detail ?? 'Non renseigné') }];
+	default:
+		return [];
+	}
+};
+
 const formatDiscordDate = (dateValue) => {
 	if (!dateValue || typeof dateValue !== 'object') return 'Non renseignée';
 	const { day, month, year, hour = 0, minute = 0 } = dateValue;
@@ -140,10 +201,12 @@ const buildReportForm = (type) => {
 		form
 			.section('Informations générales', 'Information sur l’expérience.', (sectionForm) => {
 				sectionForm.text('anomalie', 'Anomalie', { required: true });
-				sectionForm.text('personnel_scientifique', 'Membre du personnel scientifique présent', { required: true });
-				sectionForm.number('nombre_classe_d', 'Nombre de classe-D', { required: true });
-				sectionForm.text('personnel_securite', 'Membre du personnel de sécurité présent', { required: true });
 				sectionForm.date('date', 'Date de l\'expérience', { required: true });
+				sectionForm.number('nombre_classe_d', 'Nombre de classe-D', { required: true });
+			})
+			.section('Détails', 'Décrivez l’expérience et ses observations.', (sectionForm) => {
+				sectionForm.text('personnel_scientifique', 'Membre du personnel scientifique présent', { required: true });
+				sectionForm.text('personnel_securite', 'Membre du personnel de sécurité présent', { required: true });
 				sectionForm.text('observations', 'Observations', { paragraph: true, required: true });
 			});
 
@@ -268,39 +331,43 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 							return;
 						}
 					}
+
+					// Sections « Détails » du formulaire : envoyées dans le corps du thread, pas dans l'embed.
+					const detailSections = buildDetailSections(reportType, reportData);
+					const embedFields = [
+						{ name: 'Type', value: reportTitle, inline: true },
+						...(reportType !== 'personnel' ? [{ name: 'Date', value: reportDate, inline: true }] : []),
+						...(reportType === 'incident' ? [{ name: 'Lieu', value: String(reportData.lieu), inline: true }] : []),
+						...(reportType === 'personnel' ? [{ name: 'Agent concerné', value: `<@${reportData.agent}>`, inline: true }] : []),
+						...(reportType === 'prise-service' ? [{ name: 'Personnel présent', value: String(reportData.personnel) }] : []),
+						...(reportType === 'prise-service' ? [{ name: 'Durée de la prise de service', value: String(reportData.duree) }] : []),
+						...(reportType === 'experience' ? [
+							{ name: 'Anomalie', value: String(reportData.anomalie) },
+							{ name: 'Personnel scientifique présent', value: String(reportData.personnel_scientifique) },
+							{ name: 'Nombre de Classe-D', value: String(reportData.nombre_classe_d) },
+							{ name: 'Personnel de sécurité présent', value: String(reportData.personnel_securite) },
+						] : []),
+						...(reportType === 'personnel' ? [{ name: 'Article du règlement enfreint', value: String(reportData.article) }] : []),
+					];
+					// Garde-fou : un champ restant trop long pour un embed part lui aussi au corps du message.
+					const generalFields = [];
+					for (const field of embedFields) {
+						if (field.value.length > MAX_FIELD_VALUE_LENGTH) detailSections.push({ title: field.name, value: field.value });
+						else generalFields.push(field);
+					}
 					const embed = new EmbedBuilder()
 						.setColor(0x5865f2)
 						.setTitle(`📄 ${reportTitle}`)
 						.setDescription(`Soumis par ${formMeta.username} (${formMeta.user_id})`)
-						.addFields(
-							{ name: 'Type', value: reportTitle, inline: true },
-							...(reportType !== 'personnel' ? [{ name: 'Date', value: reportDate, inline: true }] : []),
-							...(reportType === 'incident' ? [{ name: 'Lieu', value: String(reportData.lieu), inline: true }] : []),
-							...(reportType === 'personnel' ? [{ name: 'Agent concerné', value: `<@${reportData.agent}>`, inline: true }] : []),
-							{ name: '────────────────────', value: '\u200b', inline: false },
-							...(reportType === 'incident' ? [{ name: 'Personnel notable présent', value: String(reportData.personnel) }] : []),
-							...(reportType === 'prise-service' ? [
-								{ name: 'Personnel présent', value: String(reportData.personnel) },
-								{ name: 'Incident éventuel', value: String(reportData.incident || 'Aucun') },
-								{ name: 'Durée de la prise de service', value: String(reportData.duree) },
-								{ name: 'Activités suspectes', value: String(reportData.activites_suspectes || 'Aucune') },
-							] : []),
-							...(reportType === 'experience' ? [
-								{ name: 'Anomalie', value: String(reportData.anomalie) },
-								{ name: 'Personnel scientifique présent', value: String(reportData.personnel_scientifique) },
-								{ name: 'Nombre de Classe-D', value: String(reportData.nombre_classe_d) },
-								{ name: 'Personnel de sécurité présent', value: String(reportData.personnel_securite) },
-								{ name: 'Observations', value: String(reportData.observations) },
-							] : []),
-							...(reportType === 'personnel' ? [{ name: 'Article du règlement enfreint', value: String(reportData.article) }] : []),
-							...(reportType === 'incident' || reportType === 'personnel'
-								? [{ name: 'Détails', value: String(reportData.detail ?? 'Non renseigné') }]
-								: []),
-						)
+						.addFields(...generalFields)
 						.setFooter({ text: `Réactions du suivi : ${rapportLuEmoji} marque le rapport comme lu ; ${rapportPromotionEmoji} indique une prise en compte pour promotion et supprime la notification.` })
 						.setTimestamp();
 
+					const detailsContent = detailSections.map((section) => `### ${section.title}\n${section.value}`).join('\n\n');
 					const reportMessage = await thread.send({ embeds: [embed] });
+					for (const detailMessage of buildDetailMessages(detailsContent)) {
+						await thread.send({ content: detailMessage.content });
+					}
 					try {
 						if (reportType === 'prise-service' && serviceHours != null) {
 							await Personnel.addActivityHours(interaction.client, formMeta.user_id, serviceHours, {
@@ -345,4 +412,8 @@ module.exports = {
 	execute: startReport,
 	startReport,
 	parseServiceDurationHours,
+	splitDetailsBody,
+	buildDetailMessages,
+	buildDetailSections,
+	DETAILS_BODY_HEADER,
 };

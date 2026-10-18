@@ -113,7 +113,7 @@ test('role synchronization swaps IRA roles when a member changes IRA', async () 
 	}
 });
 
-test('personnel nicknames capitalize names, drop BG, and keep EIT with a space separator', () => {
+test('personnel nicknames use the branch rank abbreviation, without branch or division prefixes', () => {
 	const originalAbbreviations = config.personnelNicknameAbbreviations;
 	try {
 		config.personnelNicknameAbbreviations = {
@@ -121,26 +121,33 @@ test('personnel nicknames capitalize names, drop BG, and keep EIT with a space s
 			divisions: { ULB: 'ULB', URR: 'URR', UPR: 'UPR', UMS: 'UMS' },
 			ranks: { 'agent-premiere-classe': 'A1C.', 'sergent-eit': 'Sgt.', directeur: 'Dir.', recrue: 'Rcr.' },
 		};
-		// Branche générale : pas de préfixe de branche, pas de division si absente.
+		// Branche générale : rang de branche abrégé, sans préfixe de branche ni de division.
 		assert.equal(getPersonnelNickname({
 			branch: 'BG', branchRankId: 'agent-premiere-classe', division: null, divisionRankId: null,
 			firstName: 'jean', lastName: 'DUPONT',
 		}), 'A1C. Jean Dupont');
-		// Division : la division est le préfixe, sans tiret.
+		// Division : le rang affiché reste celui de la branche, la division n'apparaît pas dans le pseudo.
 		assert.equal(getPersonnelNickname({
 			branch: 'BG', branchRankId: 'agent-premiere-classe', division: 'ULB', divisionRankId: 'recrue',
 			firstName: 'MARIE', lastName: 'martin',
-		}), 'ULB Rcr. Marie Martin');
-		// EIT : préfixe EIT puis le rang, sans tiret.
+		}), 'A1C. Marie Martin');
+		// EIT : uniquement le rang abrégé, pas de préfixe EIT.
 		assert.equal(getPersonnelNickname({
 			branch: 'EIT', branchRankId: 'sergent-eit', division: null, divisionRankId: null,
 			firstName: 'paul', lastName: 'durand',
-		}), 'EIT Sgt. Paul Durand');
-		// Direction : préfixe DIR (ni branche générale, ni division).
+		}), 'Sgt. Paul Durand');
+		// Direction : uniquement le rang abrégé, pas de préfixe DIR.
 		assert.equal(getPersonnelNickname({
 			branch: 'DIRECTION', branchRankId: 'directeur', division: null, divisionRankId: null,
 			firstName: 'léa', lastName: 'petit',
-		}), 'DIR Dir. Léa Petit');
+		}), 'Dir. Léa Petit');
+		// Rang inconnu dans les abréviations : repli sur le libellé de l'échelle, sinon sur l'id brut.
+		assert.equal(getPersonnelNickname({
+			branch: 'BG', branchRankId: 'rang-inconnu', division: null, divisionRankId: null,
+			firstName: 'vincent', lastName: 'léger',
+		}), 'rang-inconnu Vincent Léger');
+		// Profils partiels (promotions) : pas de modification du pseudo.
+		assert.equal(getPersonnelNickname({ branch: 'BG', branchRankId: 'agent-premiere-classe' }), null);
 		// Troncature à 32 caractères.
 		const long = getPersonnelNickname({
 			branch: 'BG', branchRankId: 'agent-premiere-classe', division: null, divisionRankId: null,
