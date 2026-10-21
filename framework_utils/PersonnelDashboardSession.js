@@ -65,7 +65,7 @@ const viewOptions = [
 ];
 const HELP = {
 	characters: 'Chaque membre peut ouvrir son propre dossier. Le personnel autorisé peut consulter ou lister les personnages et repérer les membres portant le rôle Sécurité sans profil enregistré. La création, la modification et la suppression restent réservées aux administrateurs du personnel.',
-	activity: 'Le classement agrège les points ou les heures depuis le début, sur 7 jours ou sur 30 jours. Votre activité personnelle est consultable avec un profil. Le personnel autorisé peut ajouter ou retirer des points/heures; chaque correction exige un motif et est journalisée.',
+	activity: 'Le classement agrège les points ou les heures sur les dernières 24 heures, depuis le début, sur 7 jours ou sur 30 jours. Votre activité personnelle est consultable avec un profil. Le personnel autorisé peut ajouter ou retirer des points/heures; chaque correction exige un motif et est journalisée.',
 	sanctions: 'Un membre peut consulter ses propres sanctions. Le personnel autorisé peut consulter le dossier d’un autre membre, ajouter une sanction avec un motif ou révoquer un dossier actif avec un motif de révocation. Les historiques sont paginés.',
 	hierarchy: 'Les échelles affichent les rangs du plus bas au plus élevé, l’IRA et les limites d’effectif configurées. Une vague de promotions vérifie les rangs suivants et leurs places disponibles avant confirmation. La rétrogradation applique le rang immédiatement inférieur.',
 };
@@ -293,7 +293,7 @@ const renderDashboard = (state) => {
 	else if (state.page === 'activity') {
 		embed = state.leaderboardEmbed || dashboardEmbed(state, '📈 Activité', 'Classement du personnel actif. Choisissez le type et la période; les corrections sont réservées au staff.');
 		components.push(row(makeSelect('activity-type', 'Type de classement', [{ label: 'Points', value: 'points', default: state.activityType === 'points' }, { label: 'Heures', value: 'hours', default: state.activityType === 'hours' }])));
-		components.push(row(makeSelect('activity-period', 'Période', [{ label: 'Depuis le début', value: 'all', default: state.activityPeriod === 'all' }, { label: '7 derniers jours', value: 'week', default: state.activityPeriod === 'week' }, { label: '30 derniers jours', value: 'month', default: state.activityPeriod === 'month' }])));
+		components.push(row(makeSelect('activity-period', 'Période', [{ label: '24 dernières heures', value: 'day', default: state.activityPeriod === 'day' }, { label: 'Depuis le début', value: 'all', default: state.activityPeriod === 'all' }, { label: '7 derniers jours', value: 'week', default: state.activityPeriod === 'week' }, { label: '30 derniers jours', value: 'month', default: state.activityPeriod === 'month' }])));
 		components.push(row(button('activity-prev', '◀ Précédent', ButtonStyle.Secondary, state.activityPage <= 1), button('activity-next', 'Suivant ▶', ButtonStyle.Secondary, state.activityPage >= state.activityPages), ...(state.hasOwnProfile ? [button('activity-self', '👤 Mon activité')] : []), ...(canManageActivity(state.interaction) ? [button('activity-correct', '✏️ Corriger')] : [])));
 		components.push(...backRows);
 	}
@@ -504,7 +504,7 @@ const loadLeaderboard = async (state) => {
 		const amount = state.activityType === 'points' ? `${entry.amount} points` : formatDuration(Math.round(entry.amount * 60));
 		return `**${position}.** <@${entry.discordId}> · ${amount}`;
 	});
-	const period = { all: 'Depuis le début', week: '7 derniers jours', month: '30 derniers jours' }[state.activityPeriod];
+	const period = { day: '24 dernières heures', all: 'Depuis le début', week: '7 derniers jours', month: '30 derniers jours' }[state.activityPeriod];
 	state.activityPages = result.totalPages;
 	state.leaderboardEmbed = dashboardEmbed(state, `📈 Classement · ${state.activityType === 'points' ? 'Points' : 'Heures'}`, lines.join('\n') || 'Aucun membre actif à afficher.')
 		.setFooter({ text: `${period} · Page ${state.activityPage}/${result.totalPages}` });

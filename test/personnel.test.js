@@ -546,6 +546,25 @@ test('activity writes totals and logs atomically and returns NO_PROFILE without 
 	assert.equal(database.prepare('SELECT COUNT(*) AS count FROM activity_logs').get().count, 3);
 });
 
+test('leaderboard includes a 24-hour window that excludes older activity', async () => {
+	const client = { log: async () => null };
+	await addProfile('recent', 'BG', 'agent-securite');
+	await addProfile('stale', 'BG', 'agent-premiere-classe');
+	await addProfile('idle', 'BG', 'caporal');
+	await personnel.addActivityPoints(client, 'recent', 5, { source: 'rapport', reason: 'récent', actorId: 'staff' });
+	await personnel.addActivityPoints(client, 'stale', 10, { source: 'rapport', reason: 'ancien', actorId: 'staff' });
+	// La correction d'il y a 48 heures doit sortir de la fenêtre des 24 dernières heures.
+	database.prepare("UPDATE activity_logs SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-48 hours') WHERE discord_id = 'stale'").run();
+	const invalidPeriod = () => personnel.getLeaderboard({ type: 'points', period: 'foo', limit: 10, page: 1 });
+	await assert.rejects(invalidPeriod, /P\u00e9riode de classement invalide/);
+	// Les membres inactifs sur la fenêtre apparaissent avec 0 : on ne garde que les rangs non nuls.
+	const activeOn = (result) => result.rows.filter((entry) => entry.amount > 0).map((entry) => [entry.discordId, entry.amount]);
+	const dayResult = await personnel.getLeaderboard({ type: 'points', period: 'day', limit: 10, page: 1 });
+	assert.deepEqual(activeOn(dayResult), [['recent', 5]]);
+	const weekResult = await personnel.getLeaderboard({ type: 'points', period: 'week', limit: 10, page: 1 });
+	assert.deepEqual(activeOn(weekResult), [['stale', 10], ['recent', 5]]);
+});
+
 test('sanction case numbers increment atomically and revocation is persisted', async () => {
 	await addProfile('sanctioned', 'BG', 'agent-securite');
 	const first = await personnel.addSanction('sanctioned', 'Avertissement', 'Premier motif', 'issuer');

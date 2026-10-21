@@ -347,7 +347,7 @@ const removeActivity = async (client, discordId, { type, amount, source, reason,
 
 const getLeaderboard = async ({ type, period = 'all', limit = 10, page = 1 } = {}) => {
 	if (!['points', 'hours'].includes(type)) throw new Error('Type de classement invalide.');
-	if (!['all', 'week', 'month'].includes(period)) throw new Error('Période de classement invalide.');
+	if (!['day', 'all', 'week', 'month'].includes(period)) throw new Error('Période de classement invalide.');
 	if (!Number.isInteger(limit) || limit < 1) throw new Error('La limite doit être un entier positif.');
 	if (!Number.isInteger(page) || page < 1) throw new Error('La page doit être un entier positif.');
 	limit = Math.min(limit, 25);
@@ -360,7 +360,8 @@ const getLeaderboard = async ({ type, period = 'all', limit = 10, page = 1 } = {
 		rows = db.prepare(`SELECT discord_id, first_name, last_name, ${column} AS amount FROM members WHERE status = 'active' ORDER BY amount DESC, last_name COLLATE NOCASE, first_name COLLATE NOCASE, discord_id LIMIT ? OFFSET ?`).all(limit, offset);
 	}
 	else {
-		const windowMs = period === 'week' ? 7 * 24 * 60 * 60_000 : 30 * 24 * 60 * 60_000;
+		// Millisecondes écoulées pour chaque fenêtre bornée : 24 heures, 7 jours, 30 jours.
+		const windowMs = { day: 24 * 60 * 60_000, week: 7 * 24 * 60 * 60_000, month: 30 * 24 * 60 * 60_000 }[period];
 		const since = new Date(Date.now() - windowMs).toISOString();
 		rows = db.prepare(`
 			SELECT m.discord_id, m.first_name, m.last_name, COALESCE(SUM(a.amount), 0) AS amount
