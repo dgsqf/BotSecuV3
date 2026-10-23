@@ -13,8 +13,6 @@
     "rapportForumChannelId": "1548339668725137479",
     "rapportPanelChannelId": "1551998830755582104",
     "rapportSuiviChannelId": "1551998182001475694",
-    "rapportLuEmoji": "👀",
-    "rapportPromotionEmoji": "✅",
     "rapportReactionMessageId": "",
     "rapportReactionEmoji": "📄",
     "personnelRankLimits": {
@@ -97,7 +95,7 @@
             "lieutenant-eit": "Ltn.",
             "capitaine-eit": "Cpt.",
             "agent-securite": "Agt.",
-            "agent-premiere-classe": "A1C.",
+            "agent-premiere-classe": "Agt. II",
             "caporal": "Cpl.",
             "caporal-chef": "Cpl-C.",
             "sergent": "Sgt.",
@@ -124,7 +122,6 @@
         "Blâme",
         "Suspension"
     ],
-    "activityPointsPerReport": 1,
     "personnelBranchRoleIds": {
         "EIT": [
             "1545806176992759850"

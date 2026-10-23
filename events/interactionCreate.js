@@ -1,5 +1,20 @@
 const { Events, MessageFlags, Collection, EmbedBuilder } = require('discord.js');
 const { createUserErrorEmbed } = require('../framework_utils/Logging.js');
+const RapportNotation = require('../framework_utils/RapportNotation.js');
+
+// Réponse d'erreur défensive pour les composants de notation : les erreurs sont loguées et
+// l'utilisateur reçoit un message éphémère, que l'interaction soit déjà différée ou non.
+const respondNotationError = async (interaction, error) => {
+	await interaction.client.log('INTERACTION CREATE', 'ERROR', `Erreur dans la notation des rapports: ${error.stack || error}`);
+	const response = { embeds: [createUserErrorEmbed('la notation du rapport')], flags: MessageFlags.Ephemeral };
+	try {
+		if (interaction.replied || interaction.deferred) await interaction.followUp(response);
+		else await interaction.reply(response);
+	}
+	catch (followError) {
+		if (followError?.code !== 10062 && followError?.code !== 40060) throw followError;
+	}
+};
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -19,6 +34,24 @@ module.exports = {
 				await interaction.respond([]).catch(() => null);
 			}
 			return;
+		}
+		// Composants persistants de notation des rapports : bouton et modal à customId fixe, traités
+		// sans collector pour que le bouton « Noter le rapport » n'expire jamais.
+		if (interaction.isButton() && interaction.customId === RapportNotation.BUTTON_CUSTOM_ID) {
+			try {
+				return await RapportNotation.handleButton(interaction);
+			}
+			catch (error) {
+				return respondNotationError(interaction, error);
+			}
+		}
+		if (interaction.isModalSubmit() && interaction.customId.startsWith(RapportNotation.MODAL_PREFIX)) {
+			try {
+				return await RapportNotation.handleModalSubmit(interaction);
+			}
+			catch (error) {
+				return respondNotationError(interaction, error);
+			}
 		}
 		if (!interaction.isChatInputCommand()) return;
 

@@ -78,7 +78,7 @@
         ]
       },
       "suivi": {
-        "description": "Marquer les rapports comme lus ou pris en compte.",
+        "description": "Noter les rapports de 0 à 2 points et y ajouter un avis.",
         "roles": [
           "1542567004362379347",
           "1542567021055836271",

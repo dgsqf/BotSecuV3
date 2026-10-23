@@ -1,14 +1,18 @@
-const { SlashCommandBuilder, MessageFlags, EmbedBuilder, time, TimestampStyles } = require('discord.js');
+const {
+	SlashCommandBuilder,
+	MessageFlags,
+	EmbedBuilder,
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
+	time,
+	TimestampStyles,
+} = require('discord.js');
 const Form = require('../../framework_utils/Form.js');
 const Personnel = require('../../framework_utils/Personnel.js');
 const Permissions = require('../../framework_utils/Permissions.js');
-const {
-	rapportForumChannelId,
-	rapportSuiviChannelId,
-	rapportLuEmoji = '👀',
-	rapportPromotionEmoji = '✅',
-	activityPointsPerReport = 0,
-} = require('../../config.json');
+const RapportNotation = require('../../framework_utils/RapportNotation.js');
+const { rapportForumChannelId, rapportSuiviChannelId } = require('../../config.json');
 const hasReportPermission = (interaction) => Permissions.hasPermission(interaction, 'rapports.creer');
 
 // Rôle « Non recensé (membre de la sécurité) » : ses porteurs ne peuvent pas ouvrir de rapport,
@@ -135,14 +139,17 @@ const parseServiceDurationHours = (value) => {
 	return total > 0 ? total : null;
 };
 
-const publishReportTracking = async (interaction, guild, reportType, reportTitle, formMeta, thread, reportMessage) => {
+// Le salon de suivi ne conserve qu'un rôle de notification : la lecture et la notation du rapport
+// (0 à 2 points + avis) se font désormais directement dans le forum des rapports, via le bouton
+// « Noter le rapport » attaché au message du rapport (voir framework_utils/RapportNotation.js).
+const publishReportTracking = async (interaction, guild, reportTitle, formMeta, thread) => {
 	if (!rapportSuiviChannelId) return;
 	const trackingChannel = await guild.channels.fetch(rapportSuiviChannelId).catch((error) => {
 		interaction.client.log('RAPPORT', 'ERROR', `Impossible de récupérer le salon de suivi des rapports: ${error.stack || error}`);
 		return null;
 	});
 	if (!trackingChannel?.isTextBased()) return;
-	const notification = await trackingChannel.send({
+	await trackingChannel.send({
 		embeds: [new EmbedBuilder()
 			.setColor(0x5865f2)
 			.setTitle('Nouveau rapport')
@@ -150,15 +157,9 @@ const publishReportTracking = async (interaction, guild, reportType, reportTitle
 				{ name: 'Type', value: reportTitle, inline: true },
 				{ name: 'Auteur', value: `${formMeta.username} (<@${formMeta.user_id}>)`, inline: true },
 				{ name: 'Rapport', value: `[Ouvrir le rapport](${thread.url})`, inline: true },
-				{ name: 'Utilisation des réactions', value: `${rapportLuEmoji} marque le rapport comme lu.\n${rapportPromotionEmoji} indique qu’il a été pris en compte pour une promotion et supprime cette notification.` },
 			)
-			.setFooter({ text: `rapport:${thread.id}:${reportMessage.id}:${reportType}` })
 			.setTimestamp()],
 	});
-	await Promise.all([
-		notification.react(rapportLuEmoji),
-		notification.react(rapportPromotionEmoji),
-	]);
 };
 
 const buildReportForm = (type) => {
@@ -360,11 +361,18 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 						.setTitle(`📄 ${reportTitle}`)
 						.setDescription(`Soumis par ${formMeta.username} (${formMeta.user_id})`)
 						.addFields(...generalFields)
-						.setFooter({ text: `Réactions du suivi : ${rapportLuEmoji} marque le rapport comme lu ; ${rapportPromotionEmoji} indique une prise en compte pour promotion et supprime la notification.` })
 						.setTimestamp();
 
 					const detailsContent = detailSections.map((section) => `### ${section.title}\n${section.value}`).join('\n\n');
-					const reportMessage = await thread.send({ embeds: [embed] });
+					// Bouton de notation persistant : il est traité par un gestionnaire global, pas par un
+					// collector périssable, donc il ne fonctionne toujours après un redémarrage du bot.
+					await thread.send({
+						embeds: [embed],
+						components: [new ActionRowBuilder().addComponents(new ButtonBuilder()
+							.setCustomId(RapportNotation.BUTTON_CUSTOM_ID)
+							.setLabel('Noter le rapport')
+							.setStyle(ButtonStyle.Primary))],
+					});
 					for (const detailMessage of buildDetailMessages(detailsContent)) {
 						await thread.send({ content: detailMessage.content });
 					}
@@ -376,18 +384,11 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 								actorId: formMeta.user_id,
 							});
 						}
-						if (Number.isFinite(activityPointsPerReport) && activityPointsPerReport > 0) {
-							await Personnel.addActivityPoints(interaction.client, formMeta.user_id, activityPointsPerReport, {
-								source: 'rapport',
-								reason: `Rapport de type ${reportType}`,
-								actorId: formMeta.user_id,
-							});
-						}
 					}
 					catch (error) {
-						await interaction.client.log('RAPPORT', 'ERROR', `Le rapport a été envoyé, mais ses points d’activité et/ou ses heures n’ont pas été ajoutés: ${error.stack || error}`);
+						await interaction.client.log('RAPPORT', 'ERROR', `Le rapport a été envoyé, mais ses heures d’activité n’ont pas été ajoutées: ${error.stack || error}`);
 					}
-					await publishReportTracking(interaction, reportGuild, reportType, reportTitle, formMeta, thread, reportMessage);
+					await publishReportTracking(interaction, reportGuild, reportTitle, formMeta, thread);
 					await interaction.client.log('RAPPORT', 'INFO', `Rapport de type "${reportType}" soumis par ${formMeta.username} <@${formMeta.user_id}> dans le thread ${thread.name} <#${thread.id}>.`);
 					await interaction.followUp({
 						embeds: [new EmbedBuilder()

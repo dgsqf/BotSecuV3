@@ -5,7 +5,6 @@ const urgencePanel = require('../commands/urgences/urgence-panel.js');
 const rapportPanel = require('../commands/rapports/rapport-panel.js');
 const evenementPanel = require('../commands/evenements/evenement-panel.js');
 const evenement = require('../framework_utils/Events.js');
-const reportReaction = require('./messageReactionAdd.js');
 const { startJob } = require('../framework_utils/CronStatus.js');
 const {
 	statusChannelId,
@@ -79,12 +78,6 @@ module.exports = {
 		}
 		catch (error) {
 			await client.log('READY', 'ERROR', `Erreur lors de la restauration du panel d'évènements: ${error.stack || error}`);
-		}
-		try {
-			await reportReaction.restore(client);
-		}
-		catch (error) {
-			await client.log('READY', 'ERROR', `Erreur lors de la restauration des réactions de rapports: ${error.stack || error}`);
 		}
 		await evenement.restoreAndProcess(client);
 		client.eventTrackingInterval = setInterval(() => evenement.restoreAndProcess(client), 60_000);
