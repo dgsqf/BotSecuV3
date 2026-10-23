@@ -17,6 +17,18 @@ const Permissions = require('../../framework_utils/Permissions.js');
 const { recruitmentCategoryId, recruitmentAcceptedRoleIds = [], recruitmentResultChannelId, rapportForumChannelId, UrgenceDivisions } = require('../../config.json');
 const SECU_ROLE_ID = UrgenceDivisions?.brancheGen?.roleId;
 
+const formatProcessingTime = (startDate, endDate) => {
+	const totalMinutes = Math.max(0, Math.round((endDate - startDate) / 60000));
+	const days = Math.floor(totalMinutes / 1440);
+	const hours = Math.floor((totalMinutes % 1440) / 60);
+	const minutes = totalMinutes % 60;
+	const parts = [];
+	if (days) parts.push(`${days} jour${days > 1 ? 's' : ''}`);
+	if (hours) parts.push(`${hours} heure${hours > 1 ? 's' : ''}`);
+	if (minutes || parts.length === 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+	return parts.slice(0, 2).join(' et ');
+};
+
 const getUserReportThread = async (forumChannel, username) => {
 	const normalizedUsername = username.toLowerCase();
 	const cachedThread = forumChannel?.threads?.cache.find((thread) => thread.name?.toLowerCase() === normalizedUsername);
@@ -129,9 +141,8 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						resultChannel = await buttonInteraction.guild.channels.fetch(recruitmentResultChannelId);
 						resultEmbed = new EmbedBuilder()
 							.setColor(0x57f287)
-							.setTitle('Candidature acceptée')
-							.setDescription(`La candidature de ${userMention(meta.user_id)} a été acceptée.`)
-							.setFooter({ text: `Accepté par ${buttonInteraction.user.tag}`, iconURL: buttonInteraction.user.displayAvatarURL() })
+							.setTitle('Candidature acceptée')									.setDescription(`La candidature de ${userMention(meta.user_id)} a été acceptée.`)
+									.setFooter({ text: `Accepté par ${buttonInteraction.user.tag} • Temps de traitement : ${formatProcessingTime(safeTimestamp.getTime(), buttonInteraction.createdTimestamp)}`, iconURL: buttonInteraction.user.displayAvatarURL() })
 							.setTimestamp();
 						if (resultChannel?.isTextBased()) {
 
@@ -235,9 +246,8 @@ const createRecruitmentPrompt = (data, meta, salon) => {
 						salonResultat = await buttonInteraction.guild.channels.fetch(recruitmentResultChannelId);
 						resultEmbed = new EmbedBuilder()
 							.setColor(0xed4245)
-							.setTitle('Candidature refusée')
-							.setDescription(`La candidature de ${userMention(meta.user_id)} a été refusée.`)
-							.setFooter({ text: `Refusé par ${buttonInteraction.user.tag}`, iconURL: buttonInteraction.user.displayAvatarURL() })
+							.setTitle('Candidature refusée')									.setDescription(`La candidature de ${userMention(meta.user_id)} a été refusée.`)
+									.setFooter({ text: `Refusé par ${buttonInteraction.user.tag} • Temps de traitement : ${formatProcessingTime(safeTimestamp.getTime(), modalSubmit.createdTimestamp)}`, iconURL: buttonInteraction.user.displayAvatarURL() })
 							.addFields({ name: 'Motif du refus', value: reason })
 							.setTimestamp();
 						if (salonResultat?.isTextBased()) {
