@@ -107,7 +107,6 @@ const parseServiceDurationHours = (value) => {
 	if (value == null || value === '') return null;
 	if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
 	if (typeof value !== 'string') return null;
-
 	const normalized = value.trim().replace(/,/g, '.').toLowerCase();
 	if (!normalized) return null;
 	if (/^\d+(?:\.\d+)?$/.test(normalized)) return Number(normalized);
@@ -139,9 +138,22 @@ const parseServiceDurationHours = (value) => {
 	return total > 0 ? total : null;
 };
 
-// Le salon de suivi ne conserve qu'un rôle de notification : la lecture et la notation du rapport
-// (0 à 2 points + avis) se font désormais directement dans le forum des rapports, via le bouton
-// « Noter le rapport » attaché au message du rapport (voir framework_utils/RapportNotation.js).
+// Consigne de format affichée dans le libellé et le modal du champ « Durée » ; testée par parseServiceDurationHours.
+const SERVICE_DURATION_FORMAT_HINT = 'Format : « 2 h 30 » (heures + minutes), « 90 min » ou « 2,5 » (heures décimales)'.slice(0, 100);
+
+// Valide la durée saisie et renvoie le message d'erreur à afficher, ou null si le format est accepté.
+const validateServiceDuration = (value) => {
+	const text = String(value ?? '').trim();
+	if (parseServiceDurationHours(text) == null) {
+		return `La durée « ${text.slice(0, 50)} » n’a pas été reconnue. ${SERVICE_DURATION_FORMAT_HINT}.`;
+	}
+	return null;
+};
+
+// Le salon de suivi ne conserve qu'un rôle de notification : la lecture et la notation des seuls
+// rapports d'incident et d'expérience (0 à 2 points + avis) se font désormais directement dans
+// le forum des rapports, via le bouton « Noter le rapport » attaché au message du rapport
+// (voir framework_utils/RapportNotation.js).
 const publishReportTracking = async (interaction, guild, reportTitle, formMeta, thread) => {
 	if (!rapportSuiviChannelId) return;
 	const trackingChannel = await guild.channels.fetch(rapportSuiviChannelId).catch((error) => {
@@ -194,7 +206,12 @@ const buildReportForm = (type) => {
 			})
 			.section('Détails', 'Décrivez la prise de service et ses observations.', (sectionForm) => {
 				sectionForm.text('incident', 'Incident éventuel', { paragraph: true, required: false });
-				sectionForm.text('duree', 'Durée de la prise de service (heures et minutes)', { required: true, placeholder: 'Exemple : 2 h 30 ou 1 h 45' });
+				sectionForm.text('duree', 'Durée de la prise de service', {
+					required: true,
+					placeholder: 'Exemple : 2 h 30',
+					modalDescription: SERVICE_DURATION_FORMAT_HINT,
+					validate: validateServiceDuration,
+				});
 				sectionForm.text('activites_suspectes', 'Activités suspectes', { paragraph: true, required: false });
 			});
 	}
@@ -325,7 +342,7 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 								embeds: [new EmbedBuilder()
 									.setColor(0xed4245)
 									.setTitle('Durée non reconnue')
-									.setDescription(`La durée « ${String(reportData.duree).trim()} » n’a pas été reconnue. Utilisez un format heures + minutes, par exemple « 2 h 30 » ou « 1:45 ».`)],
+									.setDescription(`La durée « ${String(reportData.duree).trim()} » n’a pas été reconnue. ${SERVICE_DURATION_FORMAT_HINT}.`)],
 								flags: MessageFlags.Ephemeral,
 							});
 							await interaction.client.log('RAPPORT', 'WARN', `Rapport de prise de service refusé : durée illisible (${formMeta.username} <@${formMeta.user_id}>).`);
@@ -366,12 +383,18 @@ const startReport = async (interaction, reportGuild = interaction.guild) => {
 					const detailsContent = detailSections.map((section) => `### ${section.title}\n${section.value}`).join('\n\n');
 					// Bouton de notation persistant : il est traité par un gestionnaire global, pas par un
 					// collector périssable, donc il ne fonctionne toujours après un redémarrage du bot.
+					// Seuls les rapports d'incident et d'expérience sont notés : la prise de service ne
+					// rapporte que ses heures (créditées ci-dessous) et le rapport personnel rien.
+					const ratingButton = new ButtonBuilder()
+						.setCustomId(RapportNotation.BUTTON_CUSTOM_ID)
+						.setLabel('Noter le rapport')
+						.setStyle(ButtonStyle.Primary);
+					const ratingComponents = RapportNotation.isRatableReportType(reportType)
+						? [new ActionRowBuilder().addComponents(ratingButton)]
+						: [];
 					await thread.send({
 						embeds: [embed],
-						components: [new ActionRowBuilder().addComponents(new ButtonBuilder()
-							.setCustomId(RapportNotation.BUTTON_CUSTOM_ID)
-							.setLabel('Noter le rapport')
-							.setStyle(ButtonStyle.Primary))],
+						...(ratingComponents.length ? { components: ratingComponents } : {}),
 					});
 					for (const detailMessage of buildDetailMessages(detailsContent)) {
 						await thread.send({ content: detailMessage.content });
@@ -413,6 +436,7 @@ module.exports = {
 	execute: startReport,
 	startReport,
 	parseServiceDurationHours,
+	validateServiceDuration,
 	splitDetailsBody,
 	buildDetailMessages,
 	buildDetailSections,

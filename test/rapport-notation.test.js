@@ -122,3 +122,27 @@ test('button and modal custom ids are stable and within Discord limits', () => {
 	const modalCustomId = `${RapportNotation.MODAL_PREFIX}1111111111111111111:2222222222222222222`;
 	assert.ok(modalCustomId.length <= 100);
 });
+
+test('only incident and experience reports are ratable', () => {
+	const makeReportable = (title, description) => ({
+		title: `📄 ${title}`,
+		description: `Soumis par Agent Exemple (123456789012345678)${description ? `\n${description}` : ''}`,
+		fields: [],
+	});
+	for (const title of ['Rapport d\'incident', 'Rapport d\'expérience']) {
+		const embed = makeReportable(title);
+		assert.equal(RapportNotation.isRatableReport(embed), true, title);
+	}
+	for (const title of ['Rapport de prise de service', 'Rapport concernant le personnel']) {
+		const embed = makeReportable(title);
+		assert.equal(RapportNotation.isRatableReport(embed), false, title);
+	}
+	assert.equal(RapportNotation.isRatableReport(makeReportable('Rapport d\'incident', '\nDescription supplémentaire')), true);
+	assert.equal(RapportNotation.isRatableReport(false), false);
+	assert.equal(RapportNotation.isRatableReport(null), false);
+	// Vérifie qu'un garde-fou de notation ignorera ce type de rapport en toutes circonstances.
+	assert.equal(RapportNotation.isRatableReportType('prise-service'), false);
+	assert.equal(RapportNotation.isRatableReportType('personnel'), false);
+	assert.equal(RapportNotation.isRatableReportType('incident'), true);
+	assert.equal(RapportNotation.isRatableReportType('experience'), true);
+});

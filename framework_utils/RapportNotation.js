@@ -1,7 +1,8 @@
 /*
  * Notation des rapports :
  * - le message d'un rapport dans le forum porte un bouton « Noter le rapport » persistant ;
- * - un officier (permission rapports.suivi) l'ouvre, choisit 0, 1 ou 2 points et rédige un avis ;
+ * - seuls les rapports d'incident et d'expérience sont notés ; un officier (permission
+ *   rapports.suivi) ouvre le formulaire, choisit 0, 1 ou 2 points et rédige un avis ;
  * - l'agent auteur du rapport reçoit en MP un résumé de son rapport (embed, champs de détails
  *   tronqués à 1024 caractères), les points obtenus et l'avis de l'officier ;
  * - le message du rapport est mis à jour avec la notation : le bouton est retiré, un seul
@@ -26,6 +27,12 @@ const Permissions = require('./Permissions.js');
 const Personnel = require('./Personnel.js');
 
 const NOTATION_PERMISSION = 'rapports.suivi';
+
+// Types de rapport notés : prise de service ne rapporte que ses heures (créditées à l'envoi)
+// et le rapport concernant le personnel ne rapporte aucune activité.
+const RATABLE_REPORT_TYPES = new Set(['incident', 'experience']);
+
+const isRatableReportType = (reportType) => RATABLE_REPORT_TYPES.has(reportType);
 
 const BUTTON_CUSTOM_ID = 'rapport:noter';
 // Modal customId : <prefix><threadId>:<messageId>
@@ -56,6 +63,14 @@ const truncateValue = (value, limit = DM_FIELD_VALUE_LIMIT) => {
 const getReportAuthorId = (embed) => embed?.description?.match(/^Soumis par .+? \((\d+)\)$/)?.[1] ?? null;
 
 const isReportEmbed = (embed) => typeof embed?.title === 'string' && embed.title.startsWith(REPORT_TITLE_PREFIX);
+
+// Garde-fou : un message de rapport non notable (prise de service, personnel) ne doit jamais
+// accepter une notation, même si son bouton a été ajouté par une ancienne version du bot.
+const getReportTitle = (reportEmbed) => reportEmbed?.title?.replace(REPORT_TITLE_PREFIX, '') ?? null;
+const isRatableReport = (reportEmbed) => {
+	const title = getReportTitle(reportEmbed);
+	return title === 'Rapport d\'incident' || title === 'Rapport d\'expérience';
+};
 
 const getNotationField = (embed) => embed?.fields?.find((field) => field.name === NOTATION_FIELD_NAME) ?? null;
 
@@ -174,6 +189,13 @@ const handleButton = async (interaction) => {
 		});
 	}
 
+	if (!isRatableReport(reportEmbed)) {
+		return replyEphemeral(interaction, {
+			title: 'Rapport non noté',
+			description: 'Seuls les rapports d’incident et d’expérience sont notés.',
+		});
+	}
+
 	const pointsSelect = new StringSelectMenuBuilder()
 		.setCustomId(POINTS_SELECT_CUSTOM_ID)
 		.setPlaceholder('Sélectionnez la notation')
@@ -266,6 +288,15 @@ const handleModalSubmit = async (interaction) => {
 		});
 	}
 
+	if (!isRatableReport(reportEmbed)) {
+		return interaction.editReply({
+			embeds: [new EmbedBuilder()
+				.setColor(0xfee75c)
+				.setTitle('Rapport non noté')
+				.setDescription('Seuls les rapports d’incident et d’expérience sont notés.')],
+		});
+	}
+
 	const points = extractSelectedPoints(interaction);
 	const avis = (interaction.fields.getTextInputValue(AVIS_INPUT_CUSTOM_ID) || '').trim();
 	if (points == null || !avis) {
@@ -355,6 +386,9 @@ module.exports = {
 	truncateValue,
 	getReportAuthorId,
 	isReportEmbed,
+	isRatableReportType,
+	isRatableReport,
+	getReportTitle,
 	getNotationField,
 	parseModalReference,
 	extractSelectedPoints,

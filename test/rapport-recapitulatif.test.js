@@ -9,6 +9,34 @@ test('report periods use calendar-aware start dates', () => {
 	assert.equal(recapitulatif.subtractPeriod(new Date('2024-02-29T12:00:00.000Z'), { years: 1 }).toISOString(), '2023-02-28T12:00:00.000Z');
 });
 
+test('custom ranges are parsed in Paris time with DST handled', () => {
+	// Été (UTC+2) : 19/07/2026 19:30 heure de Paris = 17:30 UTC.
+	const summer = recapitulatif.parseCustomRange('du 19/07/26 19:30 au 20/07/26 6h00');
+	assert.equal(summer.error, undefined);
+	assert.equal(summer.start.toISOString(), '2026-07-19T17:30:00.000Z');
+	assert.equal(summer.end.toISOString(), '2026-07-20T04:00:00.000Z');
+	assert.match(summer.label, /du 19\/07\/2026 19:30 au 20\/07\/2026 06:00/);
+
+	// Hiver (UTC+1) : 19/01 19:30 heure de Paris = 18:30 UTC.
+	const winter = recapitulatif.parseCustomRange('du 19/01/26 19:30 au 20/01/26 6h00');
+	assert.equal(winter.start.toISOString(), '2026-01-19T18:30:00.000Z');
+	assert.equal(winter.end.toISOString(), '2026-01-20T05:00:00.000Z');
+
+	// Année sur 4 chiffres et dates sans heure : début 00:00, fin 23:59.
+	const withoutTime = recapitulatif.parseCustomRange('du 19/07/2026 au 20/07/2026');
+	assert.equal(withoutTime.start.toISOString(), '2026-07-18T22:00:00.000Z');
+	assert.equal(withoutTime.end.toISOString(), '2026-07-20T21:59:00.000Z');
+});
+
+test('custom ranges reject malformed, inverted or nonexistent bounds', () => {
+	for (const text of ['19/07/26', 'abc', 'du 19/07/26 au', 'du 19/07/26 19:30 au 19/07/26 19:30']) {
+		assert.ok(recapitulatif.parseCustomRange(text).error, text);
+	}
+	assert.match(recapitulatif.parseCustomRange('du 19/07/26 19:30 au 18/07/26').error, /postérieure/);
+	assert.match(recapitulatif.parseCustomRange('du 31/02/26 au 01/03/26').error, /début/);
+	assert.match(recapitulatif.parseCustomRange('du 19/07/26 au 32/13/26').error, /fin/);
+});
+
 test('report entries include report date, author, and all report fields', () => {
 	const [report] = recapitulatif.getReportEntries({
 		createdTimestamp: 1_700_000_000_000,

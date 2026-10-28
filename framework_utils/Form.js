@@ -435,7 +435,9 @@ class Form {
 						if (maxLength != null) textInput.setMaxLength(maxLength);
 						const label = new LabelBuilder();
 						label.setLabel('Répondez à la question :');
-						label.setDescription(String(field.label).slice(0, 100));
+						// Description du libellé du modal : permet d'afficher une consigne de format dédiée,
+						// plus longue que le libellé du champ utilisé pour le bouton du formulaire.
+						label.setDescription(String(field.modalDescription || field.label).slice(0, 100));
 						label.setTextInputComponent(textInput);
 						// Préremplissage de la ré-édition : la réponse complète enregistrée est restituée dans le modal
 						// (l'aperçu, lui, affiche une version tronquée) ; champs bornés préfillent dans leur limite.
@@ -466,7 +468,13 @@ class Form {
 							state.values[field.id] = numericValue;
 						}
 						else {
+							// Validation à la saisie : la réponse invalide est conservée dans le champ (préremplie
+							// à la ré-édition) et l'erreur explique le format attendu. La confirmation reste bloquée.
 							state.values[field.id] = rawValue;
+							const validationError = typeof field.validate === 'function' ? field.validate(rawValue) : null;
+							if (validationError) {
+								return modalSubmit.reply({ embeds: [new EmbedBuilder().setColor(0xed4245).setTitle('Format invalide').setDescription(validationError)], flags: MessageFlags.Ephemeral });
+							}
 						}
 						await modalSubmit.deferUpdate();
 						await updateCurrentMessage(buildPayload({ includeFlags: false }));
