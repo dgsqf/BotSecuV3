@@ -248,48 +248,47 @@ test('deleting a profile leaves its Discord roles untouched', async () => {
 });
 
 test('previewPromotion keeps the division title below a skipped equivalent and catches up later', async () => {
-	await addProfile('ums-plateau', 'BG', 'recrue', 'UMS');
-	await personnel.setRank('ums-plateau', 'agent-medicale');
-	const plateau = await personnel.previewPromotion('ums-plateau');
-	assert.equal(plateau.to.branchRankId, 'caporal-chef');
-	assert.equal(plateau.to.divisionRankId, 'agent-medicale');
-	assert.equal(plateau.to.label, 'Agent médical');
-	assert.equal(plateau.iraChanged, false);
+	await addProfile('division-plateau', 'BG', 'recrue', 'UPR');
+	// Palier Caporal : l'équivalent UPR le plus haut reste Recrue (Agent de protection vise Caporal-chef).
+	const plateau = await personnel.previewPromotion('division-plateau');
+	assert.equal(plateau.to.branchRankId, 'caporal');
+	assert.equal(plateau.to.divisionRankId, 'recrue');
+	assert.equal(plateau.to.label, 'Recrue');
+	assert.equal(plateau.iraChanged, true);
 
-	await personnel.setRank('ums-plateau', 'adjudant');
-	const held = await personnel.getProfile('ums-plateau');
-	assert.equal(held.branchRankId, 'adjudant');
-	assert.equal(held.divisionRankId, 'agent-medicale');
-	assert.equal(held.ira, 3);
+	await personnel.setRank('division-plateau', 'caporal');
+	const held = await personnel.getProfile('division-plateau');
+	assert.equal(held.branchRankId, 'caporal');
+	assert.equal(held.divisionRankId, 'recrue');
+	assert.equal(held.ira, 2);
 
-	const caughtUp = await personnel.previewPromotion('ums-plateau');
-	assert.equal(caughtUp.to.branchRankId, 'major');
-	assert.equal(caughtUp.to.divisionRankId, 'major');
-	assert.equal(caughtUp.to.ira, 4);
+	const caughtUp = await personnel.previewPromotion('division-plateau');
+	assert.equal(caughtUp.to.branchRankId, 'caporal-chef');
+	assert.equal(caughtUp.to.divisionRankId, 'agent-protection');
+	assert.equal(caughtUp.to.ira, 2);
 });
 
-test('previewPromotion stops UMS members below ladders summit rank', async () => {
-	await addProfile('ums-summit', 'BG', 'recrue', 'UMS');
-	await personnel.setRank('ums-summit', 'lieutenant');
-	const before = await personnel.getProfile('ums-summit');
+test('previewPromotion stops division members below ladders summit rank', async () => {
+	await addProfile('division-summit', 'BG', 'recrue', 'ULB');
+	await personnel.setRank('division-summit', 'lieutenant');
+	const before = await personnel.getProfile('division-summit');
 	assert.equal(before.branchRankId, 'lieutenant');
-	const summit = await personnel.previewPromotion('ums-summit');
+	const summit = await personnel.previewPromotion('division-summit');
 	assert.equal(summit.ok, false);
-	assert.match(summit.reason, /dépasse le sommet de l'échelle de la division UMS/);
+	assert.match(summit.reason, /dépasse le sommet de l'échelle de la division ULB/);
 });
 
 test('ApplyPromotions keeps division title while advancing branch rank', async () => {
-	await addProfile('ums-agent', 'BG', 'recrue', 'UMS');
-	await personnel.setRank('ums-agent', 'agent-medicale');
+	await addProfile('promotion-title', 'BG', 'recrue', 'UPR');
 	const result = await personnel.applyPromotions(
 		{ log: async () => null },
 		'issuer',
-		[{ discordId: 'ums-agent' }],
+		[{ discordId: 'promotion-title' }],
 	);
 	assert.equal(result.succès.length, 1);
-	const profile = await personnel.getProfile('ums-agent');
-	assert.equal(profile.branchRankId, 'caporal-chef');
-	assert.equal(profile.divisionRankId, 'agent-medicale');
+	const profile = await personnel.getProfile('promotion-title');
+	assert.equal(profile.branchRankId, 'caporal');
+	assert.equal(profile.divisionRankId, 'recrue');
 	assert.equal(profile.ira, 2);
 });
 
@@ -325,7 +324,6 @@ test('previewPromotion advances the branch rank and unlocks the matching divisio
 		ULB: ['operateur', 'caporal', 2],
 		URR: ['operateur', 'caporal', 2],
 		UPR: ['recrue', 'caporal', 2],
-		UMS: ['agent-medicale', 'caporal', 2],
 	};
 	for (const [index, [division, [divisionRankId, branchRankId, ira]]] of Object.entries(expected).entries()) {
 		const discordId = `division-${index}`;
@@ -359,11 +357,11 @@ test('setBranch changes branch or division and resets to a valid rank and IRA', 
 	assert.equal(bg.branch, 'BG');
 	assert.equal(bg.branchRankId, 'agent-securite');
 	assert.equal(bg.ira, 1);
-	const division = await personnel.setBranch('branch-change', 'BG', 'UMS', 'agent-medicale');
-	assert.equal(division.division, 'UMS');
-	assert.equal(division.branchRankId, 'caporal');
-	assert.equal(division.divisionRankId, 'agent-medicale');
-	assert.equal(division.ira, 2);
+	const division = await personnel.setBranch('branch-change', 'BG', 'UPR', 'responsable-equipe');
+	assert.equal(division.division, 'UPR');
+	assert.equal(division.branchRankId, 'sergent');
+	assert.equal(division.divisionRankId, 'responsable-equipe');
+	assert.equal(division.ira, 3);
 	const eit = await personnel.setBranch('branch-change', 'EIT', null, 'recrue-eit');
 	assert.equal(eit.branch, 'EIT');
 	assert.equal(eit.division, null);

@@ -1,8 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Database = require('better-sqlite3');
+const { getRank, mapDivisionRankToBg } = require('../data/hierarchy.js');
 
 const DEFAULT_DATABASE_PATH = path.join(__dirname, '..', 'data', 'personnel.sqlite');
+
+// Divisions reconnues par le schéma et par la gestion du personnel.
+const DIVISIONS = ['ULB', 'URR', 'UPR'];
+const DIVISION_SQL_LIST = DIVISIONS.map((division) => `'${division}'`).join(', ');
 
 const createMembersTable = (tableName, ifNotExists = false) => `
 	CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}${tableName} (
@@ -11,7 +16,7 @@ const createMembersTable = (tableName, ifNotExists = false) => `
 		last_name TEXT NOT NULL,
 		branch TEXT NOT NULL CHECK (branch IN ('EIT', 'BG', 'COMMANDEMENT', 'DIRECTION', 'COMMISSION')),
 		branch_rank_id TEXT NOT NULL,
-		division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR', 'UMS')),
+		division TEXT CHECK (division IS NULL OR division IN (${DIVISION_SQL_LIST})),
 		division_rank_id TEXT,
 		ira INTEGER NOT NULL CHECK (ira BETWEEN 1 AND 8),
 		activity_points REAL NOT NULL DEFAULT 0,
@@ -67,7 +72,25 @@ const migrateMemberBranchSchema = (database) => {
 		UPDATE members SET branch_rank_id = 'officier-commission', ira = 6
 		WHERE branch = 'COMMISSION' AND branch_rank_id = 'representant-departement'
 	`).run();
-	if (memberSchema.includes('\'DIRECTION\'') && memberSchema.includes('\'COMMISSION\'') && memberSchema.includes('BETWEEN 1 AND 8')) {
+	// Une division retirée de la configuration ne doit pas empêcher le démarrage : ses profils
+	// réintègrent leur branche avec le rang BG équivalent à leur ancien titre de division.
+	const migrateRetiredDivisions = () => {
+		const retired = database.prepare(`
+			SELECT discord_id, branch, division_rank_id FROM members
+			WHERE division IS NOT NULL AND division NOT IN (${DIVISION_SQL_LIST})
+		`).all();
+		const updateBgMember = database.prepare('UPDATE members SET branch_rank_id = ?, division = NULL, division_rank_id = NULL, ira = ? WHERE discord_id = ?');
+		const releaseDivision = database.prepare('UPDATE members SET division = NULL, division_rank_id = NULL WHERE discord_id = ?');
+		for (const member of retired) {
+			if (member.branch !== 'BG') {
+				releaseDivision.run(member.discord_id);
+				continue;
+			}
+			const branchRankId = mapDivisionRankToBg(member.division_rank_id) || 'agent-securite';
+			updateBgMember.run(branchRankId, getRank(branchRankId)?.ira ?? 1, member.discord_id);
+		}
+	};
+	if (memberSchema.includes('\'DIRECTION\'') && memberSchema.includes('\'COMMISSION\'') && memberSchema.includes('BETWEEN 1 AND 8') && memberSchema.includes(`division IN (${DIVISION_SQL_LIST})`)) {
 		migrateRemovedCommissionRank();
 		return;
 	}
@@ -75,6 +98,7 @@ const migrateMemberBranchSchema = (database) => {
 	database.pragma('foreign_keys = OFF');
 	try {
 		database.transaction(() => {
+			migrateRetiredDivisions();
 			database.exec(createMembersTable('members_new'));
 			database.exec(`
 				INSERT INTO members_new (

@@ -118,7 +118,7 @@ test('personnel nicknames use the branch rank abbreviation, without branch or di
 	try {
 		config.personnelNicknameAbbreviations = {
 			branches: { EIT: 'EIT', BG: 'BG', COMMANDEMENT: 'CMD', DIRECTION: 'DIR', COMMISSION: 'CS' },
-			divisions: { ULB: 'ULB', URR: 'URR', UPR: 'UPR', UMS: 'UMS' },
+			divisions: { ULB: 'ULB', URR: 'URR', UPR: 'UPR' },
 			ranks: { 'agent-premiere-classe': 'A1C.', 'sergent-eit': 'Sgt.', directeur: 'Dir.', recrue: 'Rcr.' },
 		};
 		// Branche générale : rang de branche abrégé, sans préfixe de branche ni de division.

@@ -30,7 +30,7 @@ const BRANCHES = [
 	{ label: 'Direction', value: 'DIRECTION' },
 	{ label: 'Commission de sûreté', value: 'COMMISSION' },
 ];
-const DIVISIONS = ['ULB', 'URR', 'UPR', 'UMS'];
+const DIVISIONS = ['ULB', 'URR', 'UPR'];
 const SANCTION_TYPES = (config.sanctionTypes || []).slice(0, 25).map((value) => ({ label: value, value }));
 const SECURITY_ROLE_ID = config.UrgenceDivisions?.brancheGen?.roleId;
 const DIRECTORY_PAGE_SIZE = 10;

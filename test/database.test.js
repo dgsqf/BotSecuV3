@@ -26,7 +26,7 @@ test('database migration preserves existing personnel records and accepts Direct
 			last_name TEXT NOT NULL,
 			branch TEXT NOT NULL CHECK (branch IN ('EIT', 'BG', 'COMMANDEMENT')),
 			branch_rank_id TEXT NOT NULL,
-			division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR', 'UMS')),
+			division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR')),
 			division_rank_id TEXT,
 			ira INTEGER NOT NULL CHECK (ira BETWEEN 1 AND 7),
 			activity_points REAL NOT NULL DEFAULT 0,
@@ -95,7 +95,7 @@ test('database startup upgrades Commission profiles using the removed representa
 			last_name TEXT NOT NULL,
 			branch TEXT NOT NULL CHECK (branch IN ('EIT', 'BG', 'COMMANDEMENT', 'DIRECTION', 'COMMISSION')),
 			branch_rank_id TEXT NOT NULL,
-			division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR', 'UMS')),
+			division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR')),
 			division_rank_id TEXT,
 			ira INTEGER NOT NULL CHECK (ira BETWEEN 1 AND 8),
 			activity_points REAL NOT NULL DEFAULT 0,
@@ -114,6 +114,41 @@ test('database startup upgrades Commission profiles using the removed representa
 	try {
 		const member = database.prepare('SELECT branch_rank_id, ira FROM members WHERE discord_id = ?').get('legacy-representative');
 		assert.deepEqual(member, { branch_rank_id: 'officier-commission', ira: 6 });
+	}
+	finally {
+		database.close();
+	}
+});
+
+test('database startup releases profiles held by a division that is no longer configured', () => {
+	const databasePath = path.join(temporaryDirectory, 'retired-division.sqlite');
+	const legacyDatabase = new Database(databasePath);
+	legacyDatabase.exec(`
+		CREATE TABLE members (
+			discord_id TEXT PRIMARY KEY,
+			first_name TEXT NOT NULL,
+			last_name TEXT NOT NULL,
+			branch TEXT NOT NULL CHECK (branch IN ('EIT', 'BG', 'COMMANDEMENT', 'DIRECTION', 'COMMISSION')),
+			branch_rank_id TEXT NOT NULL,
+			division TEXT CHECK (division IS NULL OR division IN ('ULB', 'URR', 'UPR', 'ANCIENNE')),
+			division_rank_id TEXT,
+			ira INTEGER NOT NULL CHECK (ira BETWEEN 1 AND 8),
+			activity_points REAL NOT NULL DEFAULT 0,
+			activity_minutes INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+			created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+			updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+			CHECK ((division IS NULL AND division_rank_id IS NULL) OR (branch = 'BG' AND division IS NOT NULL AND division_rank_id IS NOT NULL))
+		);
+		INSERT INTO members (discord_id, first_name, last_name, branch, branch_rank_id, division, division_rank_id, ira)
+		VALUES ('retired-division-member', 'Jean', 'Ancien', 'BG', 'agent-premiere-classe', 'ANCIENNE', 'operateur', 1);
+	`);
+	legacyDatabase.close();
+
+	const database = openDatabase(databasePath);
+	try {
+		const member = database.prepare('SELECT division, division_rank_id, branch_rank_id, ira FROM members WHERE discord_id = ?').get('retired-division-member');
+		assert.deepEqual(member, { division: null, division_rank_id: null, branch_rank_id: 'caporal', ira: 2 });
 	}
 	finally {
 		database.close();

@@ -230,7 +230,6 @@ const createUrgencePanel = () => new Prompt({
 	.addField('**Brèche de confinement**', 'Si vous êtes témoin d’une brèche de confinement, cliquez sur le bouton « Brèche de confinement » pour appeler l\'Unité de Réponse et de Reconfinement (URR)')
 	.addField('**Émeute de Classe-D**', 'Si vous êtes témoin d’une émeute de Classe-D, cliquez sur le bouton « Émeute de Classe-D » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et toute la sécurité')
 	.addField('**RAID hostile**', 'Si vous êtes témoin d’un RAID hostile, cliquez sur le bouton « RAID hostile » pour appeler l\'Équipe d\'Intervention Tactique (EIT) et toute la sécurité')
-	.addField('**Appel Medecin de Combat**', 'Si vous êtes témoin d’une situation nécessitant l’intervention d’un Médecin de Combat, cliquez sur le bouton « Appel Medecin de Combat » pour appeler l\'Unité Médicale de Sécurité (UMS)')
 	.addField('**Demande de Protection**', 'Si vous avez besoin de protection rapprochée, cliquez sur le bouton « Demande de Protection » pour appeler l\'Équipe de Protection Rapprochée (EPR)')
 	.addField('**Autre**', 'Si votre situation d’urgence n’est pas listée, cliquez sur le bouton « Autre » pour sélectionner les divisions à contacter et fournir une description de la situation.')
 	.addField('**Remarque**', '**Veuillez noter que l’utilisation abusive de cette fonction peut entraîner des sanctions. Utilisez-la uniquement en cas d’urgence réelle.**')

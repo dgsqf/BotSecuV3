@@ -59,18 +59,11 @@ const divisionLadders = {
 		createRank('major', 'Major', 4),
 		createRank('lieutenant', 'Lieutenant', 5),
 	],
-	UMS: [
-		createRank('recrue', 'Recrue', 1),
-		createRank('agent-medicale', 'Agent médical', 2),
-		createRank('major', 'Major', 4),
-		createRank('lieutenant', 'Lieutenant', 5),
-	],
 };
 
 const divisionToBgRank = {
 	recrue: 'agent-premiere-classe',
 	operateur: 'caporal',
-	'agent-medicale': 'caporal',
 	'agent-protection': 'caporal-chef',
 	'responsable-equipe': 'sergent',
 	sergent: 'sergent',
@@ -100,8 +93,7 @@ const mapDivisionRankToBg = (divisionRankId) => divisionToBgRank[divisionRankId]
 // Équivalence branche → division : titre de division équivalent à un rang de branche.
 // Pour BG, on suit la table de correspondance divisionToBgRank : le titre est le rang de division
 // dont l'équivalent BG est atteint dans l'échelle de branche (le plus haut possible). Lorsqu'aucun
-// rang de division n'est équivalent au palier franchi (ex. UMS entre Caporal et Major), le titre
-// reste au rang en dessous.
+// rang de division n'est équivalent au palier franchi, le titre reste au rang en dessous.
 // Pour EIT, le rang de branche appartient à l'échelle EIT ; la direction décide du mouvement :
 // « up » (vague de promotion) fait avancer le titre d'un cran de l'échelle de division s'il ne
 // dépasse pas l'IRA du palier de branche ; « down » (rétrogradation) redescend au titre le plus

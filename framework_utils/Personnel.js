@@ -92,7 +92,7 @@ const resolveProfileRank = ({ branch, division = null, rankId, branchRankId = nu
 	if (!getLadder(branch).length) throw new Error('Branche invalide.');
 	// BG et EIT peuvent avoir une division; les autres branches n'en ont pas.
 	if (!['BG', 'EIT'].includes(branch) && division != null) throw new Error('Seules les branches BG et EIT peuvent avoir une division.');
-	if (division != null && !['ULB', 'URR', 'UPR', 'UMS'].includes(division)) throw new Error('Division invalide.');
+	if (division != null && !['ULB', 'URR', 'UPR'].includes(division)) throw new Error('Division invalide.');
 
 	if (division) {
 		const ladder = getLadder('BG', division);
@@ -248,7 +248,7 @@ const setDivision = async (discordId, division, rankId, { branchRankId = null } 
 		return getProfile(discordId);
 	}
 
-	if (!['ULB', 'URR', 'UPR', 'UMS'].includes(division)) throw new Error('Division invalide.');
+	if (!['ULB', 'URR', 'UPR'].includes(division)) throw new Error('Division invalide.');
 	const divisionRankId = rankId || getLadder('BG', division)[0].id;
 	if (!getLadder('BG', division).some((rank) => rank.id === divisionRankId)) throw new Error('Ce rang n’appartient pas à la division sélectionnée.');
 	// Pour un membre EIT, le rang de branche EIT est conservé; pour BG, celui de la division s'applique.

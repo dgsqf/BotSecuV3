@@ -6,6 +6,7 @@ const readline = require('node:readline');
 const {
 	Client,
 	Collection,
+	Events,
 	GatewayIntentBits,
 	Partials,
 } = require('discord.js');
@@ -73,6 +74,31 @@ client.log = createLogger(
 	client,
 	process.env.LOG_CHANNEL_ID || configuredLogChannelId,
 );
+
+/*
+ * Certains panneaux d'hébergement n'affichent que stdout :
+ * on duplique la cause sur stdout pour qu'elle reste visible.
+ */
+const reportError = (prefix, error) => {
+	console.error(prefix, error);
+
+	console.log(
+		`${prefix} (${error?.code || error?.name || 'ERREUR'}): ${error?.message || error}`,
+	);
+};
+
+/*
+ * Sans écouteur "error", une erreur de passerelle (token refusé,
+ * intents désactivés, connexion coupée) est émise sans être traitée
+ * et le processus meurt sans afficher la cause.
+ */
+client.on(Events.Error, (error) => {
+	reportError('[ERROR] Discord client error', error);
+});
+
+client.on(Events.ShardError, (error, shardId) => {
+	reportError(`[ERROR] Discord gateway error (shard ${shardId})`, error);
+});
 
 client.database = null;
 client.statusMessage = null;
@@ -586,6 +612,41 @@ const initializeDatabase = () => {
 // DÉMARRAGE
 // ============================================================
 
+/*
+ * client.login() ne se termine jamais si la passerelle Discord est
+ * injoignable (réseau bloqué, DNS, panne). Sans délai maximal, le bot
+ * reste bloqué juste après "Connecting to Discord..." sans aucune
+ * erreur, puis l'hébergeur le relance en boucle.
+ */
+const LOGIN_TIMEOUT_MS = 30_000;
+
+const loginWithTimeout = async () => {
+	let timeoutId;
+
+	try {
+		await Promise.race([
+			client.login(
+				process.env.DISCORD_BOT_TOKEN,
+			),
+			new Promise((resolve, reject) => {
+				timeoutId = setTimeout(() => {
+					const error = new Error(
+						`Discord ne répond pas après ${LOGIN_TIMEOUT_MS} ms. Vérifiez que le serveur peut joindre gateway.discord.gg (réseau, DNS, pare-feu).`,
+					);
+
+					error.code = 'LOGIN_TIMEOUT';
+
+					reject(error);
+				}, LOGIN_TIMEOUT_MS);
+			}),
+		]);
+	}
+	finally {
+		clearTimeout(timeoutId);
+	}
+};
+
+
 const start = async () => {
 	// ----------------------------------------------------------
 	// DATABASE
@@ -609,9 +670,7 @@ const start = async () => {
 	try {
 		console.log('Connecting to Discord...');
 
-		await client.login(
-			process.env.DISCORD_BOT_TOKEN,
-		);
+		await loginWithTimeout();
 
 		console.log('');
 		console.log('========================================');
@@ -624,10 +683,14 @@ const start = async () => {
 		terminal.prompt();
 	}
 	catch (error) {
-		console.error(
-			'[LOGIN] Failed to connect to Discord:',
-			error,
-		);
+		reportError('[LOGIN] Failed to connect to Discord', error);
+
+		/*
+		 * Filet de sécurité : le client n'étant pas connecté, l'envoi du
+		 * log Discord peut rester bloqué. On garantit une sortie pour que
+		 * la cause soit visible au lieu d'un processus zombie.
+		 */
+		setTimeout(() => process.exit(1), 2_000).unref();
 
 		try {
 			await client.log(
@@ -646,6 +709,10 @@ const start = async () => {
 		closeDatabase();
 
 		terminal.close();
+
+		client.destroy();
+
+		process.stdin.pause();
 
 		process.exitCode = 1;
 	}

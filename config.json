@@ -51,10 +51,6 @@
             "UPR": {
                 "major": 1,
                 "lieutenant": 1
-            },
-            "UMS": {
-                "major": 1,
-                "lieutenant": 1
             }
         }
     },
@@ -83,8 +79,7 @@
         "divisions": {
             "ULB": "ULB",
             "URR": "URR",
-            "UPR": "UPR",
-            "UMS": "UMS"
+            "UPR": "UPR"
         },
         "ranks": {
             "recrue-eit": "Rec.",
@@ -112,8 +107,7 @@
             "recrue": "Rcr.",
             "operateur": "Op.",
             "agent-protection": "APR.",
-            "responsable-equipe": "Resp-Eq.",
-            "agent-medicale": "Agt. Med."
+            "responsable-equipe": "Resp-Eq."
         }
     },
     "promotionChannelId": "1558407945572585532",
@@ -148,11 +142,6 @@
         "UPR": [
             "1542565428960960602",
             "1545809732298866858",
-            "1545809518464733296"
-        ],
-        "UMS": [
-            "1542565870444879953",
-            "1545809716171645092",
             "1545809518464733296"
         ]
     },
@@ -309,20 +298,6 @@
                 "lieutenant": [
                     "1542565572406157473"
                 ]
-            },
-            "UMS": {
-                "recrue": [
-                    "1542566032605188106"
-                ],
-                "agent-medicale": [
-                    "1542566012803874846"
-                ],
-                "major": [
-                    "1542565995556765836"
-                ],
-                "lieutenant": [
-                    "1542565968633405461"
-                ]
             }
         }
     },
@@ -351,7 +326,6 @@
         "ULB-division": "1548340763606261770",
         "URR-division": "1548340701740146759",
         "UPR": "1548340638800552085",
-        "UMS": "1548340731331219456",
         "EIT": "1548340789489303553"
     },
     "EventTypes": {
@@ -516,7 +490,6 @@
                         "ULB",
                         "URR",
                         "UPR",
-                        "UMS",
                         "EIT",
                         "Toute la sécurité"
                     ],
@@ -570,7 +543,6 @@
                         "ULB",
                         "URR",
                         "UPR",
-                        "UMS",
                         "EIT"
                     ],
                     "required": true,
@@ -585,7 +557,6 @@
         "ULB": "1542825344984416256",
         "UPR": "1542826077271892009",
         "URR": "1542826041628688414",
-        "UMS": "1542826101666226226",
         "Officier": "1550078500512202794"
     },
     "UrgenceDivisions": {
@@ -608,10 +579,6 @@
         "URR": {
             "channelId": "1542826041628688414",
             "roleId": "1545809728616005724"
-        },
-        "UMS": {
-            "channelId": "1542826101666226226",
-            "roleId": "1545809716171645092"
         },
         "Officier": {
             "channelId": "1550078500512202794",
@@ -679,13 +646,6 @@
             "label": "Demande de protection",
             "divisions": [
                 "UPR"
-            ],
-            "fields": []
-        },
-        "medecin-combat": {
-            "label": "Appel médecin de combat",
-            "divisions": [
-                "UMS"
             ],
             "fields": []
         },

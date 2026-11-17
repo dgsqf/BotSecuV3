@@ -16,7 +16,6 @@ test('hiérarchies de branche et de division sont ordonnées du bas vers le haut
 	assert.equal(getLadder('BG').at(-1).id, 'capitaine-equipes');
 	assert.deepEqual(getLadder('BG', 'ULB').map(({ id }) => id), getLadder('BG', 'URR').map(({ id }) => id));
 	assert.deepEqual(getLadder('BG', 'UPR').map(({ id }) => id), ['recrue', 'agent-protection', 'responsable-equipe', 'major', 'lieutenant']);
-	assert.deepEqual(getLadder('BG', 'UMS').map(({ id }) => id), ['recrue', 'agent-medicale', 'major', 'lieutenant']);
 	assert.equal(getLadder('COMMANDEMENT').length, 2);
 	assert.deepEqual(getLadder('DIRECTION').map(({ id }) => id), ['directeur-adjoint', 'directeur']);
 	assert.deepEqual(getLadder('COMMISSION').map(({ id }) => id), ['officier-commission', 'commissaire-conseil-surete']);
@@ -34,7 +33,6 @@ test('getRank and getNextRank return rank metadata and stop at the ladder summit
 test('division ranks map to BG ranks, including rank jumps', () => {
 	assert.equal(mapDivisionRankToBg('recrue'), 'agent-premiere-classe');
 	assert.equal(mapDivisionRankToBg('operateur'), 'caporal');
-	assert.equal(mapDivisionRankToBg('agent-medicale'), 'caporal');
 	assert.equal(mapDivisionRankToBg('agent-protection'), 'caporal-chef');
 	assert.equal(mapDivisionRankToBg('responsable-equipe'), 'sergent');
 	assert.equal(mapDivisionRankToBg('sergent'), 'sergent');
@@ -51,11 +49,10 @@ test('computeIra follows branch ranks and each BG division rank', () => {
 	assert.equal(computeIra({ branch: 'DIRECTION', branchRankId: 'directeur' }), 8);
 	assert.equal(computeIra({ branch: 'COMMISSION', branchRankId: 'officier-commission' }), 6);
 	assert.equal(computeIra({ branch: 'COMMISSION', branchRankId: 'commissaire-conseil-surete' }), 7);
-	for (const division of ['ULB', 'URR', 'UPR', 'UMS']) {
+	for (const division of ['ULB', 'URR', 'UPR']) {
 		assert.equal(computeIra({ branch: 'BG', branchRankId: 'agent-premiere-classe', division, divisionRankId: 'recrue' }), 1);
 	}
 	assert.equal(computeIra({ branch: 'BG', division: 'UPR', divisionRankId: 'responsable-equipe' }), 3);
-	assert.equal(computeIra({ branch: 'BG', division: 'UMS', divisionRankId: 'major' }), 4);
 	assert.throws(() => computeIra({ branch: 'BG', division: 'ULB', divisionRankId: 'inconnu' }), /Rang de division invalide/);
 });
 
